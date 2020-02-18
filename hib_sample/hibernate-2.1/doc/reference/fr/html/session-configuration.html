@@ -1,0 +1,501 @@
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+   <title>Chapitre&nbsp;3.&nbsp;Configuration de la SessionFactory</title><link rel="stylesheet" href="../shared/css/html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.65.1"><link rel="home" href="index.html" title="HIBERNATE - Persistence Relationnelle dans un Java standard"><link rel="up" href="index.html" title="HIBERNATE - Persistence Relationnelle dans un Java standard"><link rel="previous" href="architecture.html" title="Chapitre&nbsp;2.&nbsp;Architecture"><link rel="next" href="persistent-classes.html" title="Chapitre&nbsp;4.&nbsp;Classes persistantes"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapitre&nbsp;3.&nbsp;Configuration de la SessionFactory</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="architecture.html">Pr&eacute;c&eacute;dent</a>&nbsp;</td><th width="60%" align="center">&nbsp;</th><td width="20%" align="right">&nbsp;<a accesskey="n" href="persistent-classes.html">Suivant</a></td></tr></table><hr></div><div class="chapter" lang="fr"><div class="titlepage"><div><div><h2 class="title"><a name="session-configuration"></a>Chapitre&nbsp;3.&nbsp;Configuration de la SessionFactory</h2></div></div><div></div></div><p>
+        Parce qu'Hibernate est con&ccedil;u pour fonctionner dans diff&eacute;rents environnements,
+        il existe beaucoup de param&egrave;tres de configuration. Heureusement, la plupart
+        ont des valeurs par d&eacute;faut appropri&eacute;es et la distribution d'Hibernate contient
+        un exemple de fichier <tt class="literal">hibernate.properties</tt> qui montre
+        les diff&eacute;rentes options. G&eacute;n&eacute;ralement, vous n'avez qu'&agrave; placer ce fichier dans
+        votre classpath et &agrave; l'adapter.
+    </p><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="configuration-programmatic"></a>3.1.&nbsp;Configuration par programmation</h2></div></div><div></div></div><p>
+            Une instance de <tt class="literal">net.sf.hibernate.cfg.Configuration</tt>
+            repr&eacute;sente un ensemble de mappings des classes Java d'une application vers
+            la base de donn&eacute;es SQL. La <tt class="literal">Configuration</tt> est utilis&eacute;e
+            pour construire un objet (immuable) <tt class="literal">SessionFactory</tt>.
+            Les mappings sont constitu&eacute;s d'un ensemble de fichiers de mapping XML.
+        </p><p>
+            Vous pouvez obtenir une instance de <tt class="literal">Configuration</tt>
+            en l'instanciant directement. Voici un exemple de configuration d'une
+            source de donn&eacute;es et d'un mapping compos&eacute; de deux fichiers de configuration
+            XML (qui se trouvent dans le classpath) :
+        </p><pre class="programlisting">Configuration cfg = new Configuration()
+    .addFile("Item.hbm.xml")
+    .addFile("Bid.hbm.xml");</pre><p>
+            Une alternative (parfois meilleure) est de laisser Hibernate charger le fichier
+            de mapping en utilisant <tt class="literal">getResourceAsStream()</tt> :
+        </p><pre class="programlisting">Configuration cfg = new Configuration()
+    .addClass(org.hibernate.auction.Item.class)
+    .addClass(org.hibernate.auction.Bid.class);</pre><p>
+            Hibernate va rechercher les fichiers de mappings 
+            <tt class="literal">/org/hibernate/auction/Item.hbm.xml</tt> et
+            <tt class="literal">/org/hibernate/auction/Bid.hbm.xml</tt> dans le classpath.
+            Cette approche &eacute;limine les noms de fichiers en dur.
+        </p><p>
+            Une <tt class="literal">Configuration</tt> permet &eacute;galement plusieurs valeurs optionnelles :
+        </p><pre class="programlisting">Properties props = new Properties();
+...
+Configuration cfg = new Configuration()
+    .addClass(org.hibernate.auction.Item.class)
+    .addClass(org.hibernate.auction.Bid.class)
+    .setProperties(props);</pre><p>
+            Une <tt class="literal">Configuration</tt> est sens&eacute;e &ecirc;tre un objet n&eacute;cessaire pendant la 
+            phase de configuration et &ecirc;tre lib&eacute;r&eacute;e une fois la <tt class="literal">SessionFactory</tt> construite.
+        </p></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="configuration-sessionfactory"></a>3.2.&nbsp;Obtenir une SessionFactory</h2></div></div><div></div></div><p>
+            Quand tous les mappings ont &eacute;t&eacute; pars&eacute;s par la <tt class="literal">Configuration</tt>, l'application
+            doit obtenir une fabrique d'instances de <tt class="literal">Session</tt>. Cette fabrique est suppos&eacute;e
+            &ecirc;tre partag&eacute;e par tous les threads de l'application :
+        </p><pre class="programlisting">SessionFactory sessions = cfg.buildSessionFactory();</pre><p>
+            Cependant, Hibernate permet &agrave; votre application d'instancier plus d'une <tt class="literal">SessionFactory</tt>.
+            C'est utile si vous utilisez plus d'une base de donn&eacute;es.
+        </p></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="configuration-userjdbc"></a>3.3.&nbsp;Connexion JDBC fournie par l'utilisateur</h2></div></div><div></div></div><p>
+            Une <tt class="literal">SessionFactory</tt> peut ouvrir une <tt class="literal">Session</tt>
+            en utilisant une connexion JDBC fournie par l'utilisateur. Ce choix de design
+            permet &agrave; l'application d'obtenir les connexions JDBC de la fa&ccedil;on qu'il lui plait :
+        </p><pre class="programlisting">java.sql.Connection conn = datasource.getConnection();
+Session session = sessions.openSession(conn);
+
+// do some data access work</pre><p>
+            L'application doit faire attention &agrave; ne pas ouvrir deux
+            <tt class="literal">Session</tt>s concurrentes en utilisant la 
+            m&ecirc;me connexion !
+        </p></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="configuration-hibernatejdbc"></a>3.4.&nbsp;Connexions JDBC fournie par Hibernate</h2></div></div><div></div></div><p>
+            Alternativement, vous pouvez laisser la <tt class="literal">SessionFactory</tt>
+            ouvrir les connexions pour vous. La <tt class="literal">SessionFactory</tt>
+            doit recevoir les propri&eacute;t&eacute;s de connexions JDBC de l'une des mani&egrave;res
+            suivantes :
+        </p><div class="orderedlist"><ol type="1" compact><li><p>
+                    Passer une instance de <tt class="literal">java.util.Properties</tt>
+                    &agrave; <tt class="literal">Configuration.setProperties()</tt>.
+                </p></li><li><p>
+                    Placer <tt class="literal">hibernate.properties</tt> dans un r&eacute;pertoire racine
+                    du classpath
+                </p></li><li><p>
+                    Positionner les propri&eacute;t&eacute;s <tt class="literal">System</tt> en utilisant
+                    <tt class="literal">java -Dproperty=value</tt>.
+                </p></li><li><p>
+                    Inclure des &eacute;l&eacute;ments <tt class="literal">&lt;property&gt;</tt> dans le
+                    fichier <tt class="literal">hibernate.cfg.xml</tt> (voir plus loin).
+                </p></li></ol></div><p>
+            Si vous suivez cette approche, ouvrir une <tt class="literal">Session</tt> est aussi simple que :
+        </p><pre class="programlisting">Session session = sessions.openSession(); // ouvre une nouvelle session
+// faire quelques acc&egrave;s aux donn&eacute;es, une connexion JDBC sera utilis&eacute;e &agrave; la demande</pre><p>
+            Tous les noms et s&eacute;mantiques des propri&eacute;t&eacute;s d'Hibernate sont d&eacute;finies dans la javadoc
+            de la classe <tt class="literal">net.sf.hibernate.cfg.Environment</tt>. Nous allons d&eacute;crire
+            les param&egrave;tres les plus importants pour une connexion JDBC.
+        </p><p>
+            Hibernate obtiendra des connexions (et les mettra dans un pool) en utilisant 
+            <tt class="literal">java.sql.DriverManager</tt> si vous positionner les param&egrave;tres de la mani&egrave;re
+            suivante :
+        </p><div class="table"><a name="d0e764"></a><p class="title"><b>Tableau&nbsp;3.1.&nbsp;Propri&eacute;t&eacute;s JDBC d'Hibernate</b></p><table summary="Propri&eacute;t&eacute;s JDBC d'Hibernate" border="1"><colgroup><col><col></colgroup><thead><tr><th>Nom de la propri&eacute;t&eacute;</th><th>Fonction</th></tr></thead><tbody><tr><td><tt class="literal">hibernate.connection.driver_class</tt></td><td><span class="emphasis"><em>Classe du driver jdbc</em></span></td></tr><tr><td><tt class="literal">hibernate.connection.url</tt></td><td><span class="emphasis"><em>URL jdbc</em></span></td></tr><tr><td><tt class="literal">hibernate.connection.username</tt></td><td><span class="emphasis"><em>utilisateur de la base de donn&eacute;es</em></span></td></tr><tr><td><tt class="literal">hibernate.connection.password</tt></td><td><span class="emphasis"><em>mot de passe de la base de donn&eacute;es</em></span></td></tr><tr><td><tt class="literal">hibernate.connection.pool_size</tt></td><td><span class="emphasis"><em>nombre maximum de connexions dans le pool</em></span></td></tr></tbody></table></div><p>
+            L'algorithme natif de pool de connexions d'Hibernate est plut&ocirc;t rudimentaire. Il a &eacute;t&eacute; fait 
+            dans le but de vous aider &agrave; d&eacute;marrer et <span class="emphasis"><em>n'est pas pr&eacute;vu pour un syst&egrave;me en production</em></span>
+            ou m&ecirc;me pour un test de peformance. Utiliser un pool tiers pour de meilleures performances et une
+            meilleure stabilit&eacute; : remplacer la propri&eacute;t&eacute; <tt class="literal">hibernate.connection.pool_size</tt> avec les propri&eacute;t&eacute;s
+            sp&eacute;cifique au pool de connexions que vous avez choisi.
+        </p><p>
+            C3P0 est un pool de connexions JDBC open source distribu&eacute; avec Hibernate dans le r&eacute;pertoire
+            <tt class="literal">lib</tt>. Hibernate utilisera le provider int&eacute;gr&eacute; <tt class="literal">C3P0ConnectionProvider</tt>
+            pour le pool de connexions si vous positionnez les propri&eacute;t&eacute;s <tt class="literal">hibernate.c3p0.*</tt>.
+            Il y a &eacute;galement un support int&eacute;gr&eacute; pour Apache DBCP et Proxool. Vous devez
+            positionner les propri&eacute;t&eacute;s <tt class="literal">hibernate.dbcp.*</tt> (propri&eacute;t&eacute;s du pool de connexions
+            DBCP) pour activer le <tt class="literal">DBCPConnectionProvider</tt>. Le cache des Prepared Statement
+            est activ&eacute; (fortement recommand&eacute;) si <tt class="literal">hibernate.dbcp.ps.*</tt> (propri&eacute;t&eacute;s du cache 
+            de statement de DBCP) sont positionn&eacute;es. Merci de vous r&eacute;f&eacute;rer &agrave; la documentation de apache commons-pool
+            pour l'utilisation et la compr&eacute;hension de ces propri&eacute;t&eacute;s. Vous devez positionner les propri&eacute;t&eacute;s 
+            <tt class="literal">hibernate.proxool.*</tt> si vous voulez utiliser Proxool.
+        </p><p>
+            Voici un exemple utilisant C3P0:
+        </p><a name="c3p0-configuration"></a><pre class="programlisting">hibernate.connection.driver_class = org.postgresql.Driver
+hibernate.connection.url = jdbc:postgresql://localhost/mydatabase
+hibernate.connection.username = myuser
+hibernate.connection.password = secret
+hibernate.c3p0.min_size=5
+hibernate.c3p0.max_size=20
+hibernate.c3p0.timeout=1800
+hibernate.c3p0.max_statement=50
+hibernate.dialect = net.sf.hibernate.dialect.PostgreSQLDialect</pre><p>
+            Dans le cadre de l'utilisation au sein d'un serveur d'applications, Hibernate 
+            peut obtenir les connexions &agrave; partir d'une <tt class="literal">javax.sql.Datasource</tt>
+            enregistr&eacute;e dans le JNDI. Positionner les propri&eacute;t&eacute;s suivantes :
+        </p><div class="table"><a name="d0e852"></a><p class="title"><b>Tableau&nbsp;3.2.&nbsp;Propri&eacute;t&eacute; d'une Datasource Hibernate</b></p><table summary="Propri&eacute;t&eacute; d'une Datasource Hibernate" border="1"><colgroup><col><col></colgroup><thead><tr><th>Nom d'une propri&eacute;t&eacute;</th><th>fonction</th></tr></thead><tbody><tr><td><tt class="literal">hibernate.connection.datasource</tt></td><td><span class="emphasis"><em>Nom JNDI de la datasource</em></span></td></tr><tr><td><tt class="literal">hibernate.jndi.url</tt></td><td><span class="emphasis"><em>URL du fournisseur JNDI</em></span> (optionnelle)
+                </td></tr><tr><td><tt class="literal">hibernate.jndi.class</tt></td><td><span class="emphasis"><em>Classe de l'<tt class="literal">InitialContextFactory</tt> du JNDI</em></span> (optionnelle)
+                </td></tr><tr><td><tt class="literal">hibernate.connection.username</tt></td><td><span class="emphasis"><em>utilisateur de la base de donn&eacute;es</em></span> (optionnelle)
+                </td></tr><tr><td><tt class="literal">hibernate.connection.password</tt></td><td><span class="emphasis"><em>mot de passe de la base de donn&eacute;es</em></span> (optionnelle)
+                </td></tr></tbody></table></div><p>
+            voici un exemple utilisant les datasources JNDI fournies par un serveur d'applications :
+        </p><pre class="programlisting">hibernate.connection.datasource = java:/comp/env/jdbc/MyDB
+hibernate.transaction.factory_class = \
+    net.sf.hibernate.transaction.JTATransactionFactory
+hibernate.transaction.manager_lookup_class = \
+    net.sf.hibernate.transaction.JBossTransactionManagerLookup
+hibernate.dialect = \
+    net.sf.hibernate.dialect.PostgreSQLDialect</pre><p>
+            Les connexions JDBC obtenues &agrave; partir d'une datasource JNDI participeront automatiquement
+            aux transactions g&eacute;r&eacute;es par le conteneur du serveur d'applications.
+        </p><p>
+            Des propri&eacute;t&eacute;s suppl&eacute;mentaires de connexion peuvent &ecirc;tre pass&eacute;es en pr&eacute;fixant
+            le nom de la propri&eacute;t&eacute; par "<tt class="literal">hibernate.connnection</tt>". Par exemple,
+            vous pouvez sp&eacute;cifier un jeu de caract&egrave;res en utilisant 
+            <tt class="literal">hibernate.connnection.charSet</tt>.
+        </p><p>
+            Vous pouvez fournir votre propre strat&eacute;gie d'obtention des connexions JDBC en impl&eacute;mentant l'interface
+            <tt class="literal">net.sf.hibernate.connection.ConnectionProvider</tt>. Vous pouvez s&eacute;lectionner
+            une impl&eacute;mentation sp&eacute;cifique en positionnant <tt class="literal">hibernate.connection.provider_class</tt>.
+        </p></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="configuration-optional"></a>3.5.&nbsp;Propri&eacute;t&eacute;s de configuration optionnelles</h2></div></div><div></div></div><p>
+            Il y a un certain nombre d'autres propri&eacute;t&eacute;s qui contr&ocirc;lent le fonctionnement 
+            d'Hibernate &agrave; l'ex&eacute;cution. Toutes sont optionnelles et ont comme valeurs par d&eacute;faut
+            des valeurs "raisonnables" pour un fonctionnement nominal.
+        </p><p>
+            Les propri&eacute;t&eacute;s de niveau System ne peuvent &ecirc;tre positionn&eacute;es que via la ligne de commande
+            (<tt class="literal">java -Dproperty=value</tt>) ou &ecirc;tre d&eacute;finies dans <tt class="literal">hibernate.properties</tt>.
+            Elle ne peuvent l'&ecirc;tre dans une instance de <tt class="literal">Properties</tt> pass&eacute;e &agrave; la 
+            <tt class="literal">Configuration</tt>.
+        </p><div class="table"><a name="configuration-optional-properties"></a><p class="title"><b>Tableau&nbsp;3.3.&nbsp;Propri&eacute;t&eacute;s de configuration d'Hibernate</b></p><table summary="Propri&eacute;t&eacute;s de configuration d'Hibernate" border="1"><colgroup><col><col></colgroup><thead><tr><th>Nom de la propri&eacute;t&eacute;</th><th>Fonction</th></tr></thead><tbody><tr><td><tt class="literal">hibernate.dialect</tt></td><td>
+                            Le nom de la classe du <tt class="literal">Dialect</tt> Hibernate - active
+                            l'utilisation de certaines fonctionalit&eacute;s sp&eacute;cifiques &agrave; la plateforme.
+                            <p>
+                                <span class="strong">ex.</span> 
+                                <tt class="literal">nom.complet.de.ma.classe.de.Dialect</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.default_schema</tt></td><td>
+                            Positionne dans le SQL g&eacute;n&eacute;r&eacute; un sch&eacute;ma/tablespace par d&eacute;faut pour les noms de
+                            table ne l'ayant pas surcharg&eacute;.
+                            <p>
+                                <span class="strong">ex.</span> 
+                                <tt class="literal">MON_SCHEMA</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.session_factory_name</tt></td><td>
+                            La <tt class="literal">SessionFactory</tt> sera automatiquement
+                            li&eacute;e &agrave; ce nom dans le JNDI apr&egrave;s sa cr&eacute;ation.
+                            <p>
+                                <span class="strong">ex.</span> 
+                                <tt class="literal">jndi/nom/hierarchique</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.use_outer_join</tt></td><td>
+                            Active le chargement via les jointures ouvertes. D&eacute;pr&eacute;ci&eacute;e, utiliser <tt class="literal">max_fetch_depth</tt>.
+                            <p>
+                                <span class="strong">ex.</span> 
+                                <tt class="literal">true</tt> | <tt class="literal">false</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.max_fetch_depth</tt></td><td>
+                            D&eacute;finit la profondeur maximale d'un arbre de chargement par
+                            jointures ouvertes pour les associations &agrave; cardinalit&eacute; unitaire
+                            (un-&agrave;-un, plusieurs-&agrave;-un).
+                            Un <tt class="literal">0</tt> d&eacute;sactive le chargement par jointure
+                            ouverte.
+                            <p>
+                                <span class="strong">ex.</span> 
+                                valeurs recommand&eacute;es entre <tt class="literal">0</tt> et <tt class="literal">3</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.jdbc.fetch_size</tt></td><td>
+                            Une valeur non nulle d&eacute;termine la taille de chargement
+                            des statements JDBC (appelle 
+                            <tt class="literal">Statement.setFetchSize()</tt>).
+                        </td></tr><tr><td><tt class="literal">hibernate.jdbc.batch_size</tt></td><td>
+                            Une valeur non nulle active l'utilisation par Hibernate des mises 
+                            &agrave; jour par batch de JDBC2.
+                            <p>
+                                <span class="strong">ex.</span> 
+                                les valeurs recommand&eacute;es entre <tt class="literal">5</tt> et <tt class="literal">30</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.jdbc.batch_versioned_data</tt></td><td>
+                            Param&eacute;trez cette propri&eacute;t&eacute; &agrave; <tt class="literal">true</tt> si votre pilote JDBC
+                            retourne des row counts corrects depuis <tt class="literal">executeBatch()</tt> (il est 
+                            souvent appropri&eacute; d'activer cette option). Hibernate utilisera alors le "batched DML" pour
+                            versionner automatiquement les donn&eacute;es. Par d&eacute;faut = <tt class="literal">false</tt>.
+                            <p>
+                                <span class="strong">eg.</span>
+                                <tt class="literal">true</tt> | <tt class="literal">false</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.jdbc.use_scrollable_resultset</tt></td><td>
+                            Active l'utilisation par Hibernate des resultsets scrollables 
+                            de JDBC2. Cette propri&eacute;t&eacute; est seulement n&eacute;cessaire lorsque l'on
+                            utilise une connexion JDBC fournie par l'utilisateur. Autrement,
+                            Hibernate utilise les m&eacute;tadonn&eacute;es de la connexion.
+                            <p>
+                                <span class="strong">ex.</span> 
+                                <tt class="literal">true</tt> | <tt class="literal">false</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.jdbc.use_streams_for_binary</tt></td><td>
+                            Utilise des flux lorsque l'on &eacute;crit/lit des types
+                            <tt class="literal">binary</tt> ou <tt class="literal">serializable</tt>
+                            vers et &agrave; partir de JDBC (propri&eacute;t&eacute; de niveau syst&egrave;me).
+                            <p>
+                                <span class="strong">ex.</span>
+                                <tt class="literal">true</tt> | <tt class="literal">false</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.jdbc.use_get_generated_keys</tt></td><td>
+                            Active l'utilisation de <tt class="literal">PreparedStatement.getGeneratedKeys()</tt> de JDBC3
+                            pour r&eacute;cup&eacute;rer nativement les cl&eacute;s g&eacute;n&eacute;r&eacute;es apr&egrave;s insertion. N&eacute;cessite un pilote
+                            JDBC3+, le mettre &agrave; false si votre pilote a des probl&egrave;mes avec les g&eacute;n&eacute;rateurs
+                            d'identifiant Hibernate. Par d&eacute;faut, essaie de d&eacute;terminer les possibilit&eacute;s du
+                            pilote en utilisant les meta donn&eacute;es de connexion.
+                            <p>
+                                <span class="strong">eg.</span>
+                                <tt class="literal">true|false</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.cglib.use_reflection_optimizer</tt></td><td>
+                            Active l'utilisation de CGLIB &agrave; la place de la r&eacute;flexion &agrave; l'ex&eacute;cution
+                            (Propri&eacute;t&eacute; de niveau syst&egrave;me, la valeur par d&eacute;faut &eacute;tant d'utiliser CGLIB
+                            lorsque c'est possible). La r&eacute;flexion est parfois utile en cas de probl&egrave;me.
+                            <p>
+                                <span class="strong">ex.</span> 
+                                <tt class="literal">true</tt> | <tt class="literal">false</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.jndi.<span class="emphasis"><em>&lt;propertyName&gt;</em></span></tt></td><td>
+                            Passe la propri&eacute;t&eacute; <tt class="literal">propertyName</tt> au
+                            JNDI <tt class="literal">InitialContextFactory</tt>.
+                        </td></tr><tr><td><tt class="literal">hibernate.connection.isolation</tt></td><td>
+                        Positionne le niveau de transaction JDBC. Merci de vous r&eacute;f&eacute;rer
+                        &agrave; <tt class="literal">java.sql.Connection</tt> pour le d&eacute;tail des valeurs
+                        mais sachez que toutes les bases de donn&eacute;es ne supportent pas
+                        tous les niveaux d'isolation.
+                        <p>
+                            <span class="strong">ex.</span> 
+                            <tt class="literal">1, 2, 4, 8</tt>
+                        </p></td></tr><tr><td><tt class="literal">hibernate.connection.<span class="emphasis"><em>&lt;propertyName&gt;</em></span></tt></td><td>
+                        Passe la propri&eacute;t&eacute; JDBC <tt class="literal">propertyName</tt>
+                        au <tt class="literal">DriverManager.getConnection()</tt>.
+                    </td></tr><tr><td><tt class="literal">hibernate.connection.provider_class</tt></td><td>
+                            Le nom de classe d'un <tt class="literal">ConnectionProvider</tt> 
+                            sp&eacute;cifique.
+                            <p>
+                                <span class="strong">ex.</span> 
+                                <tt class="literal">nom.de.classe.du.ConnectionProvider</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.cache.provider_class</tt></td><td>
+                            Le nom de classe d'un <tt class="literal">CacheProvider</tt> 
+                            sp&eacute;cifique.
+                            <p>
+                                <span class="strong">ex.</span> 
+                                <tt class="literal">nom.de.classe.du.CacheProvider</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.cache.use_minimal_puts</tt></td><td>
+                            Optimise le cache de second niveau en minimisant les &eacute;critures,
+                            au prix de plus de lectures (utile pour les caches en cluster).
+                            <p>
+                                <span class="strong">ex.</span> 
+                                <tt class="literal">true|false</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.cache.use_query_cache</tt></td><td>
+                            Activer le cache de requ&ecirc;te, les requ&ecirc;tes individuelles doivent tout
+                            de m&ecirc;me &ecirc;tre d&eacute;clar&eacute;es comme mettable en cache.
+                            <p>
+                                <span class="strong">ex.</span> 
+                                <tt class="literal">true|false</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.cache.query_cache_factory</tt></td><td>
+                            Le nom de classe d'une interface <tt class="literal">QueryCache</tt> ,
+                            par d&eacute;faut = built-in <tt class="literal">StandardQueryCache</tt>.
+                            <p>
+                                <span class="strong">eg.</span>
+                                <tt class="literal">nom.de.la.classe.de.QueryCache</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.cache.region_prefix</tt></td><td>
+                            Un pr&eacute;fixe &agrave; utiliser pour le nom des r&eacute;gions du 
+                            cache de second niveau.
+                            <p>
+                                <span class="strong">ex.</span> 
+                                <tt class="literal">prefix</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.transaction.factory_class</tt></td><td>
+                            Le nom de classe d'une <tt class="literal">TransactionFactory</tt>
+                            qui sera utilis&eacute;e par l'API <tt class="literal">Transaction</tt>
+                            d'Hibernate (la valeur par d&eacute;faut est 
+                            <tt class="literal">JDBCTransactionFactory</tt>).
+                            <p>
+                                <span class="strong">ex.</span> 
+                                <tt class="literal">nom.de.classe.d.une.TransactionFactory</tt>
+                            </p></td></tr><tr><td><tt class="literal">jta.UserTransaction</tt></td><td>
+                            Le nom JNDI utilis&eacute; par la <tt class="literal">JTATransactionFactory</tt>
+                            pour obtenir la <tt class="literal">UserTransaction</tt> JTA du serveur 
+                            d'applications.
+                            <p>
+                                <span class="strong">eg.</span> 
+                                <tt class="literal">jndi/nom/compose</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.transaction.manager_lookup_class</tt></td><td>
+                            Le nom de la classe du <tt class="literal">TransactionManagerLookup</tt>
+                            - requis lorsque le cache de niveau JVM est activ&eacute; dans un 
+                            environnement JTA.
+                            <p>
+                                <span class="strong">ex.</span> 
+                                <tt class="literal">nom.de.classe.du.TransactionManagerLookup</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.query.substitutions</tt></td><td>
+                            Lien entre les tokens de requ&ecirc;tes Hibernate et les 
+                            tokens SQL (les tokens peuvent &ecirc;tre des fonctions ou des
+                            noms litt&eacute;raux par exemple).
+                            <p>
+                                <span class="strong">ex.</span> 
+                                <tt class="literal">hqlLiteral=SQL_LITERAL, hqlFunction=SQLFUNC</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.show_sql</tt></td><td>
+                            Ecrit les ordres SQL dans la console.
+                            <p>
+                                <span class="strong">ex.</span> 
+                                <tt class="literal">true</tt> | <tt class="literal">false</tt>
+                            </p></td></tr><tr><td><tt class="literal">hibernate.hbm2ddl.auto</tt></td><td>
+                            Exporte le sch&eacute;ma DDL vers la base de donn&eacute;es automatiquement
+                            lorsque la <tt class="literal">SessionFactory</tt> est cr&eacute;&eacute;e.
+                            La valeur <tt class="literal">create-drop</tt> permet de supprimer 
+                            le sch&eacute;ma de base de donn&eacute;es lorsque la <tt class="literal">SessionFactory</tt>
+                            est ferm&eacute;e explicitement.
+                            <p>
+                                <span class="strong">ex.</span> 
+                                <tt class="literal">update</tt> | <tt class="literal">create</tt> | <tt class="literal">create-drop</tt>
+                            </p></td></tr></tbody></table></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="configuration-optional-dialects"></a>3.5.1.&nbsp;Dialectes SQL</h3></div></div><div></div></div><p>
+                Vous devriez toujours positionner la propri&eacute;t&eacute; <tt class="literal">hibernate.dialect</tt> &agrave;
+                la sous-classe appropri&eacute;e &agrave; votre base de donn&eacute;es. Ce n'est pas strictement obligatoire
+                &agrave; moins de vouloir utiliser la g&eacute;n&eacute;ration de cl&eacute; primaire <tt class="literal">native</tt> ou par
+                <tt class="literal">sequence</tt> ou de vouloir utiliser le m&eacute;canisme de lock pessimiste (ex. via
+                <tt class="literal">Session.lock()</tt> ou <tt class="literal">Query.setLockMode()</tt>). Cependant,
+                si vous sp&eacute;cifiez un dialecte, Hibernate utilisera des valeurs adapt&eacute;es pour certaines autres
+                propri&eacute;t&eacute;s list&eacute;es ci-dessus, vous &eacute;vitant l'effort de le faire &agrave; la main.
+            </p><div class="table"><a name="sql-dialects"></a><p class="title"><b>Tableau&nbsp;3.4.&nbsp;Dialectes SQL d'Hibernate (<tt class="literal">hibernate.dialect</tt>)</b></p><table summary="Dialectes SQL d'Hibernate (hibernate.dialect)" border="1"><colgroup><col><col></colgroup><thead><tr><th>SGBD</th><th>Dialecte</th></tr></thead><tbody><tr><td>DB2</td><td><tt class="literal">net.sf.hibernate.dialect.DB2Dialect</tt></td></tr><tr><td>DB2 AS/400</td><td><tt class="literal">net.sf.hibernate.dialect.DB2400Dialect</tt></td></tr><tr><td>DB2 OS390</td><td><tt class="literal">net.sf.hibernate.dialect.DB2390Dialect</tt></td></tr><tr><td>PostgreSQL</td><td><tt class="literal">net.sf.hibernate.dialect.PostgreSQLDialect</tt></td></tr><tr><td>MySQL</td><td><tt class="literal">net.sf.hibernate.dialect.MySQLDialect</tt></td></tr><tr><td>SAP DB</td><td><tt class="literal">net.sf.hibernate.dialect.SAPDBDialect</tt></td></tr><tr><td>Oracle (toutes versions)</td><td><tt class="literal">net.sf.hibernate.dialect.OracleDialect</tt></td></tr><tr><td>Oracle 9/10g</td><td><tt class="literal">net.sf.hibernate.dialect.Oracle9Dialect</tt></td></tr><tr><td>Sybase</td><td><tt class="literal">net.sf.hibernate.dialect.SybaseDialect</tt></td></tr><tr><td>Sybase Anywhere</td><td><tt class="literal">net.sf.hibernate.dialect.SybaseAnywhereDialect</tt></td></tr><tr><td>Microsoft SQL Server</td><td><tt class="literal">net.sf.hibernate.dialect.SQLServerDialect</tt></td></tr><tr><td>SAP DB</td><td><tt class="literal">net.sf.hibernate.dialect.SAPDBDialect</tt></td></tr><tr><td>Informix</td><td><tt class="literal">net.sf.hibernate.dialect.InformixDialect</tt></td></tr><tr><td>HypersonicSQL</td><td><tt class="literal">net.sf.hibernate.dialect.HSQLDialect</tt></td></tr><tr><td>Ingres</td><td><tt class="literal">net.sf.hibernate.dialect.IngresDialect</tt></td></tr><tr><td>Progress</td><td><tt class="literal">net.sf.hibernate.dialect.ProgressDialect</tt></td></tr><tr><td>Mckoi SQL</td><td><tt class="literal">net.sf.hibernate.dialect.MckoiDialect</tt></td></tr><tr><td>Interbase</td><td><tt class="literal">net.sf.hibernate.dialect.InterbaseDialect</tt></td></tr><tr><td>Pointbase</td><td><tt class="literal">net.sf.hibernate.dialect.PointbaseDialect</tt></td></tr><tr><td>FrontBase</td><td><tt class="literal">net.sf.hibernate.dialect.FrontbaseDialect</tt></td></tr><tr><td>Firebird</td><td><tt class="literal">net.sf.hibernate.dialect.FirebirdDialect</tt></td></tr></tbody></table></div></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="configuration-optional-outerjoin"></a>3.5.2.&nbsp;Chargement par Jointure Ouverte</h3></div></div><div></div></div><p>
+                Si votre base de donn&eacute;es supporte les outer joins de type ANSI ou Oracle, 
+                <span class="emphasis"><em>le chargement par jointure ouverte</em></span> devrait am&eacute;liorer les 
+                performances en limitant le nombre d'aller-retour avec la base de donn&eacute;es (la
+                base de donn&eacute;es effectuant donc potentiellement plus de travail). Le chargement par
+                jointure ouverte permet &agrave; un graphe connect&eacute; d'objets par une relation plusieurs-&agrave;-un,
+                un-&agrave;-plusieurs ou un-&agrave;-un d'&ecirc;tre charg&eacute; en un seul <tt class="literal">SELECT</tt> SQL.
+            </p><p>
+                Par d&eacute;faut, le graphe charg&eacute; lorsqu'un objet est demand&eacute;, finit aux objets feuilles,
+                aux collections, aux objets avec proxy ou lorsqu'une circularit&eacute; appara&icirc;t.
+            </p><p>
+                Le chargement peut &ecirc;tre activ&eacute; ou d&eacute;sactiv&eacute; (valeur par d&eacute;faut) pour une 
+                <span class="emphasis"><em>association particuli&egrave;re</em></span>, en positionant l'attribut
+                <tt class="literal">outer-join</tt> dans le mapping XML.
+            </p><p>
+                Le chargement par jointure ouverte peut &ecirc;tre d&eacute;sactiv&eacute; <span class="emphasis"><em>de mani&egrave;re
+                globale</em></span> en positionant la propri&eacute;t&eacute; 
+                <tt class="literal">hibernate.max_fetch_depth</tt> &agrave; <tt class="literal">0</tt>.
+                Une valeur de <tt class="literal">1</tt> ou plus permet les jointures ouvertes
+                pour toutes les associations un-&agrave;-un et plusieurs-&agrave;-un qui sont, par d&eacute;faut,
+                positionn&eacute;es &agrave; la valeur de jointure outerte <tt class="literal">auto</tt>.
+                Cependant, les associations un-&agrave;-plusieurs et les collections ne sont jamais charg&eacute;es
+                en utilisant une jonture ouverte, &agrave; moins de le d&eacute;clarer de fa&ccedil;on explicite
+                pour chaque association. Cette fonctionalit&eacute; peut &ecirc;tre surcharg&eacute;e &agrave; l'ex&eacute;cution
+                dans les requ&ecirc;tes Hibernate.
+            </p></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="configuration-optional-binarystreams"></a>3.5.3.&nbsp;Flux binaires</h3></div></div><div></div></div><p>
+                Oracle limite la taille d'un tableau de <tt class="literal">byte</tt> qui peuvent &ecirc;tre
+                pass&eacute;es &agrave; et vers son pilote JDBC. Si vous souhaitez utiliser des instances larges
+                de type <tt class="literal">binary</tt> ou <tt class="literal">serializable</tt>, vous devez activer
+                la propri&eacute;t&eacute; <tt class="literal">hibernate.jdbc.use_streams_for_binary</tt>. <span class="emphasis"><em>C'est une 
+                fonctionalit&eacute; de niveau JVM uniquement.</em></span>
+            </p></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="configuration-optional-cacheprovider"></a>3.5.4.&nbsp;<tt class="literal">CacheProvider</tt> sp&eacute;cifique</h3></div></div><div></div></div><p>
+                Vous pouvez int&eacute;grer un cache de second niveau de type JVM (ou cluster)
+                en impl&eacute;mentant l'interface <tt class="literal">net.sf.hibernate.cache.CacheProvider</tt>.
+                Vous pouvez s&eacute;lectionner l'impl&eacute;mentation sp&eacute;cifique en positionnant
+                <tt class="literal">hibernate.cache.provider_class</tt>.
+            </p></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="configuration-optional-transactionstrategy"></a>3.5.5.&nbsp;Configuration de la strat&eacute;gie transactionnelle</h3></div></div><div></div></div><p>
+                Si vous souhaitez utiliser l'API d'Hibernate <tt class="literal">Transaction</tt>,
+                vous devez sp&eacute;cifier une classe factory d'instances de 
+                <tt class="literal">Transaction</tt> en positionnant la propri&eacute;t&eacute;
+                <tt class="literal">hibernate.transaction.factory_class</tt>.
+                L'API <tt class="literal">Transaction</tt> masque le m&eacute;canisme de transaction 
+                sous-jacent et permet au code utilisant Hibernate de tourner dans des environnements
+                manag&eacute;s et non-manag&eacute;s sans le moindre changement.
+            </p><p>
+                Il existe deux choix standards (fournis) :
+            </p><div class="variablelist"><dl><dt><span class="term"><tt class="literal">net.sf.hibernate.transaction.JDBCTransactionFactory</tt></span></dt><dd><p>d&eacute;l&egrave;gue aux transactions de la base de donn&eacute;es (JDBC). Valeur par d&eacute;faut.</p></dd><dt><span class="term"><tt class="literal">net.sf.hibernate.transaction.JTATransactionFactory</tt></span></dt><dd><p>d&eacute;l&egrave;gue &agrave; JTA (si une transaction existant est en cours, la 
+                        <tt class="literal">Session</tt> ex&eacute;cute son travail dans ce contexte ; sinon,
+                        une nouvelle transaction est d&eacute;marr&eacute;e).</p></dd></dl></div><p>
+                Vous pouvez &eacute;galement d&eacute;finir votre propre strat&eacute;gie transactionnelle
+                (pour un service de transaction CORBA par exemple).
+            </p><p>
+                Si vous voulez utiliser un cache de niveau JVM pour des donn&eacute;es muables dans un 
+                environnement JTA, vous devez sp&eacute;cifier une strat&eacute;gie d'obtention du
+                <tt class="literal">TransactionManager</tt> JTA. En effet, cet acc&egrave;s n'est pas 
+                standardis&eacute; par la norme J2EE :
+            </p><div class="table"><a name="jtamanagerlookup"></a><p class="title"><b>Tableau&nbsp;3.5.&nbsp;TransactionManagers JTA</b></p><table summary="TransactionManagers JTA" border="1"><colgroup><col><col></colgroup><thead><tr><th>Factory de Transaction</th><th align="center">Serveur d'application</th></tr></thead><tbody><tr><td><tt class="literal">net.sf.hibernate.transaction.JBossTransactionManagerLookup</tt></td><td align="center">JBoss</td></tr><tr><td><tt class="literal">net.sf.hibernate.transaction.WeblogicTransactionManagerLookup</tt></td><td align="center">Weblogic</td></tr><tr><td><tt class="literal">net.sf.hibernate.transaction.WebSphereTransactionManagerLookup</tt></td><td align="center">WebSphere</td></tr><tr><td><tt class="literal">net.sf.hibernate.transaction.OrionTransactionManagerLookup</tt></td><td align="center">Orion</td></tr><tr><td><tt class="literal">net.sf.hibernate.transaction.ResinTransactionManagerLookup</tt></td><td align="center">Resin</td></tr><tr><td><tt class="literal">net.sf.hibernate.transaction.JOTMTransactionManagerLookup</tt></td><td align="center">JOTM</td></tr><tr><td><tt class="literal">net.sf.hibernate.transaction.JOnASTransactionManagerLookup</tt></td><td align="center">JOnAS</td></tr><tr><td><tt class="literal">net.sf.hibernate.transaction.JRun4TransactionManagerLookup</tt></td><td align="center">JRun4</td></tr><tr><td><tt class="literal">net.sf.hibernate.transaction.BESTransactionManagerLookup</tt></td><td align="center">Borland ES</td></tr></tbody></table></div></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="configuration-optional-jndi"></a>3.5.6.&nbsp;<tt class="literal">SessionFactory</tt> associ&eacute;e au JNDI</h3></div></div><div></div></div><p>
+                Une <tt class="literal">SessionFactory</tt> Hibernate associ&eacute;e au JNDI peut 
+                simplifier l'acc&egrave;s &agrave; la fabrique et donc la cr&eacute;ation de nouvelles
+                <tt class="literal">Session</tt>s.
+            </p><p>
+                Si vous d&eacute;sirez associer la <tt class="literal">SessionFactory</tt> &agrave; un nom JNDI,
+                sp&eacute;cifiez un nom (ex. <tt class="literal">java:comp/env/hibernate/SessionFactory</tt>) en
+                utilisant la propri&eacute;t&eacute; <tt class="literal">hibernate.session_factory_name</tt>.
+                Si cette propri&eacute;t&eacute; est omise, la <tt class="literal">SessionFactory</tt> ne sera pas
+                associ&eacute;e au JNDI (c'est particuli&egrave;rement pratique dans les environnements ayant une
+                impl&eacute;mentation de JNDI en lecture seule, comme c'est le cas pour Tomcat).
+            </p><p>
+                Lorsqu'il associe la <tt class="literal">SessionFactory</tt> au JNDI, Hibernate utilisera 
+                les valeurs de <tt class="literal">hibernate.jndi.url</tt>, <tt class="literal">hibernate.jndi.class</tt>
+                pour instancier un contexte d'initialisation. S'ils ne sont pas sp&eacute;cifi&eacute;s, 
+                l'<tt class="literal">InitialContext</tt> par d&eacute;faut sera utilis&eacute;.
+            </p><p>
+                Si vous d&eacute;cidez d'utiliser JNDI, un EJB ou toute autre classe utilitaire
+                pourra obtenir la <tt class="literal">SessionFactory</tt> en faisant un acc&egrave;s
+                au JNDI.
+            </p></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="configuration-optional-querysubstitution"></a>3.5.7.&nbsp;Substitution dans le langage de requ&ecirc;tage</h3></div></div><div></div></div><p>
+                Vous pouvez d&eacute;finir de nouveaux tokens dans les requ&ecirc;tes Hibernate en utilisant la propri&eacute;t&eacute;
+                <tt class="literal">hibernate.query.substitutions</tt>. Par exemple :
+            </p><pre class="programlisting">hibernate.query.substitutions vrai=1, faux=0</pre><p>
+                remplacerait les tokens <tt class="literal">vrai</tt> et <tt class="literal">faux</tt> par
+                des entiers dans le SQL g&eacute;n&eacute;r&eacute;.
+            </p><pre class="programlisting">hibernate.query.substitutions toLowercase=LOWER</pre><p>
+                permettrait de renommer la fonction SQL <tt class="literal">LOWER</tt> en <tt class="literal">toLowercase</tt>
+            </p></div></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="configuration-logging"></a>3.6.&nbsp;Logguer</h2></div></div><div></div></div><p>
+            Hibernate loggue divers &eacute;v&egrave;nements en utilisant Apache commons-logging.
+        </p><p>
+            Le service commons-logging d&eacute;l&egrave;guera directement &agrave; Apache Log4j
+            (si vous incluez <tt class="literal">log4j.jar</tt> dans votre classpath)
+            ou le syst&egrave;me de log du JDK 1.4 (si vous tournez sous le JDK 1.4
+            et sup&eacute;rieur). Vous pouvez t&eacute;l&eacute;charger Log4j &agrave; partir de
+            <tt class="literal">http://jakarta.apache.org</tt>. Pour utiliser Log4j,
+            vous devrez placer dans votre classpath un fichier 
+            <tt class="literal">log4j.properties</tt>. Un exemple de fichier est distribu&eacute;
+            avec Hibernate dans le r&eacute;pertoire <tt class="literal">src/</tt>.
+        </p><p>
+            Nous vous recommandons fortement de vous familiariser avec les messages de logs 
+            d'Hibernate. Beaucoup de soins a &eacute;t&eacute; apport&eacute; pour donner le plus de d&eacute;tails
+            possibles sans les rendre illisibles. C'est un outil essentiel en cas de soucis.
+            De m&ecirc;me, n'oubliez pas d'activer les logs SQL comme d&eacute;crit pr&eacute;c&eacute;demment
+            <tt class="literal">hibernate.show_sql</tt>, c'est la premi&egrave;re &eacute;tape
+            pour regarder les probl&egrave;mes de performance.
+        </p></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="configuration-namingstrategy"></a>3.7.&nbsp;Impl&eacute;menter une <tt class="literal">NamingStrategy</tt></h2></div></div><div></div></div><p>
+            L'interface <tt class="literal">net.sf.hibernate.cfg.NamingStrategy</tt> vous permet de
+            sp&eacute;cifier une "strat&eacute;gie de nommage" des objets et &eacute;l&eacute;ments de la base de donn&eacute;es.
+        </p><p>
+            Vous pouvez fournir des r&egrave;gles pour automatiquement g&eacute;n&eacute;rer les identifiants
+            de base de donn&eacute;es &agrave; partir des identifiants Java, ou transformer une colonne
+            ou table "logique" donn&eacute;e dans le fichier de mapping en une colonne ou table
+            "physique". Cette fonctionnalit&eacute; aide &agrave; r&eacute;duire la verbosit&eacute; de documents
+            de mapping, en &eacute;liminant le bruit r&eacute;p&eacute;titif (les pr&eacute;fixes <tt class="literal">TBL_</tt>
+            par exemple). La strat&eacute;gie par d&eacute;faut utilis&eacute;e par Hibernate est minimale.
+        </p><p>
+            Vous pouvez d&eacute;finir une strat&eacute;gie diff&eacute;rente en appelant
+            <tt class="literal">Configuration.setNamingStrategy()</tt> avant d'ajouter des
+            mappings :
+        </p><pre class="programlisting">SessionFactory sf = new Configuration()
+    .setNamingStrategy(ImprovedNamingStrategy.INSTANCE)
+    .addFile("Item.hbm.xml")
+    .addFile("Bid.hbm.xml")
+    .buildSessionFactory();</pre><p>
+            <tt class="literal">net.sf.hibernate.cfg.ImprovedNamingStrategy</tt> est une 
+            strat&eacute;gie fournie qui peut &ecirc;tre utile comme point de d&eacute;part de quelques
+            applications.
+        </p></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="configuration-xmlconfig"></a>3.8.&nbsp;Fichier de configuration XML</h2></div></div><div></div></div><p>
+            Une approche alternative est de sp&eacute;cifier toute la configuration dans un
+            fichier nomm&eacute; <tt class="literal">hibernate.cfg.xml</tt>. Ce fichier peut &ecirc;tre 
+            utilis&eacute; &agrave; la place du fichier <tt class="literal">hibernate.properties</tt>, voire
+            m&ecirc;me peut servir &agrave; surcharger les propri&eacute;t&eacute;s si les deux fichiers sont pr&eacute;sents.
+        </p><p>
+            Le fichier de configuration XML doit par d&eacute;faut se placer &agrave; la racine
+            du <tt class="literal">CLASSPATH</tt>. En voici un exemple :
+        </p><pre class="programlisting">&lt;?xml version='1.0' encoding='utf-8'?&gt;
+&lt;!DOCTYPE hibernate-configuration PUBLIC
+        "-//Hibernate/Hibernate Configuration DTD 2.0//EN"
+
+ "http://hibernate.sourceforge.net/hibernate-configuration-2.0.dtd"&gt;
+
+&lt;hibernate-configuration&gt;
+
+    &lt;!-- une instance de SessionFactory accessible par son nom jndi --&gt;
+    &lt;session-factory
+        name="java:comp/env/hibernate/SessionFactory"&gt;
+
+        &lt;!-- propri&eacute;t&eacute;s --&gt;
+        &lt;property name="connection.datasource"&gt;ma/premiere/datasource&lt;/property&gt;
+        &lt;property name="dialect"&gt;net.sf.hibernate.dialect.MySQLDialect&lt;/property&gt;
+        &lt;property name="show_sql"&gt;false&lt;/property&gt;
+        &lt;property name="use_outer_join"&gt;true&lt;/property&gt;
+        &lt;property name="transaction.factory_class"&gt;
+            net.sf.hibernate.transaction.JTATransactionFactory
+        &lt;/property&gt;
+        &lt;property name="jta.UserTransaction"&gt;java:comp/UserTransaction&lt;/property&gt;
+
+        &lt;!-- mapping files --&gt;
+        &lt;mapping resource="org/hibernate/auction/Item.hbm.xml"/&gt;
+        &lt;mapping resource="org/hibernate/auction/Bid.hbm.xml"/&gt;
+
+    &lt;/session-factory&gt;
+
+&lt;/hibernate-configuration&gt;</pre><p>
+           Configurer Hibernate devient donc aussi simple que ceci :
+       </p><pre class="programlisting">SessionFactory sf = new Configuration().configure().buildSessionFactory();</pre><p>
+           Vous pouvez utiliser une fichier de configuration XML de nom diff&eacute;rent en utilisant
+       </p><a name="configuration-xmlconfig-ex3"></a><pre class="programlisting">SessionFactory sf = new Configuration()
+    .configure("/my/package/catdb.cfg.xml")
+    .buildSessionFactory();</pre></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="architecture.html">Pr&eacute;c&eacute;dent</a>&nbsp;</td><td width="20%" align="center"><a accesskey="u" href="index.html">Niveau sup&eacute;rieur</a></td><td width="40%" align="right">&nbsp;<a accesskey="n" href="persistent-classes.html">Suivant</a></td></tr><tr><td width="40%" align="left" valign="top">Chapitre&nbsp;2.&nbsp;Architecture&nbsp;</td><td width="20%" align="center"><a accesskey="h" href="index.html">Sommaire</a></td><td width="40%" align="right" valign="top">&nbsp;Chapitre&nbsp;4.&nbsp;Classes persistantes</td></tr></table></div></body></html>

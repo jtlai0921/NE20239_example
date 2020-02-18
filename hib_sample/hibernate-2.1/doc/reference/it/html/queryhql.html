@@ -1,0 +1,547 @@
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+   <title>Capitolo&nbsp;11.&nbsp;HQL: Il linguaggio di interrogazione di Hibernate (Hibernate Query Language)</title><link rel="stylesheet" href="../shared/css/html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.65.1"><link rel="home" href="index.html" title="HIBERNATE - Persistenza Relazionale Idiomatica per Java"><link rel="up" href="index.html" title="HIBERNATE - Persistenza Relazionale Idiomatica per Java"><link rel="previous" href="transactions.html" title="Capitolo&nbsp;10.&nbsp;Transazioni e concorrenza"><link rel="next" href="querycriteria.html" title="Capitolo&nbsp;12.&nbsp;Interrogazioni per criteri"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Capitolo&nbsp;11.&nbsp;HQL: Il linguaggio di interrogazione di Hibernate (Hibernate Query Language)</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="transactions.html">Indietro</a>&nbsp;</td><th width="60%" align="center">&nbsp;</th><td width="20%" align="right">&nbsp;<a accesskey="n" href="querycriteria.html">Avanti</a></td></tr></table><hr></div><div class="chapter" lang="it"><div class="titlepage"><div><div><h2 class="title"><a name="queryhql"></a>Capitolo&nbsp;11.&nbsp;HQL: Il linguaggio di interrogazione di Hibernate (Hibernate Query Language)</h2></div></div><div></div></div><p>
+        Hibernate &egrave; dotato di un linguaggio di interrogazione estremamente potente che (del tutto
+        intenzionalmente) assomiglia molto all'SQL. Ma la sintassi non deve ingannare: l'HQL &egrave; 
+        pienamente orientato agli oggetti, e comprende nozioni come l'ereditariet&agrave;, il polimorfismo
+        e l'associazione.
+    </p><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="queryhql-casesensitivity"></a>11.1.&nbsp;Dipendenza da maiuscole e minuscole</h2></div></div><div></div></div><p>
+            Le interrogazioni non distinguono tra maiuscole e minuscole, eccetto per i nomi delle
+            classi java e delle propriet&agrave;.
+            Quindi <tt class="literal">SeLeCT</tt> &egrave; la stessa cosa di
+            <tt class="literal">sELEct</tt> che &egrave; la stessa cosa di 
+            <tt class="literal">SELECT</tt> ma
+            <tt class="literal">net.sf.hibernate.eg.FOO</tt> non &egrave;
+            <tt class="literal">net.sf.hibernate.eg.Foo</tt> e
+            <tt class="literal">foo.barSet</tt> non &egrave;
+            <tt class="literal">foo.BARSET</tt>.
+        </p><p>
+            Questo manuale fa uso di parole chiave HQL in lettere minuscole. Alcuni utenti trovano
+            che le interrogazioni con parole chiave in maiuscolo siano pi&ugrave; leggibili, ma troviamo
+            che questa convenzione sia brutta, quando utilizzata in interrogazioni annidate in codice
+            java.
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="queryhql-from"></a>11.2.&nbsp;La clausola from</h2></div></div><div></div></div><p>
+            L'interrogazione pi&ugrave; semplice possibile in Hibernate ha la forma:
+        </p><pre class="programlisting">from eg.Cat</pre><p>
+            che restituisce semplicemente tutte le istanze della classe <tt class="literal">eg.Cat</tt>. 
+        </p><p>
+            La maggior parte delle volte, avrete bisogno di assegnare un <span class="emphasis"><em>sinonimo</em></span>, 
+            poich&eacute; vorrete fare riferimento al <tt class="literal">Cat</tt> in altre parti dell'interrogazione.
+        </p><pre class="programlisting">from eg.Cat as cat</pre><p>
+            Questa query assegna il sinonimo <tt class="literal">cat</tt> alle istanze di <tt class="literal">Cat</tt>, 
+            in modo da poter usare quel sinonimo pi&ugrave; avanti nell'interrogazione. La parola chiave <tt class="literal">as</tt>
+            &egrave; opzionale, potremmo anche scrivere:
+        </p><pre class="programlisting">from eg.Cat cat</pre><p>
+            Possono apparire anche classi multiple, il che risulta in un prodotto cartesiano o join "incrociato".
+        </p><pre class="programlisting">from Formula, Parameter</pre><pre class="programlisting">from Formula as form, Parameter as param</pre><p>
+            Viene considerata una buona abitudine dare ai sinonimi delle interrogazioni nomi
+            che comincino con lettere minuscole, in maniera coerente con gli standard di 
+            denominazione di Java per le variabili locali (ad esempio 
+            <tt class="literal">domesticCat</tt>).
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="queryhql-joins"></a>11.3.&nbsp;Associazioni e join</h2></div></div><div></div></div><p>
+            Possiamo anche assegnare sinonimi ad entit&agrave; associate, o anche ad elementi di una
+            collezione di valori, usando un <tt class="literal">join</tt>.
+        </p><pre class="programlisting">from eg.Cat as cat 
+    inner join cat.mate as mate
+    left outer join cat.kittens as kitten
+
+from eg.Cat as cat left join cat.mate.kittens as kittens
+
+from Formula form full join form.parameter param</pre><p>
+            I tipi di join supportati sono presi in prestito dall'SQL ANSI
+        </p><div class="itemizedlist"><ul type="disc" compact><li><p>
+                    <tt class="literal">inner join</tt>
+                </p></li><li><p>
+                    <tt class="literal">left outer join</tt>
+                </p></li><li><p>
+                    <tt class="literal">right outer join</tt>
+                </p></li><li><p>
+                    <tt class="literal">full join</tt> (di solito inutile)
+                </p></li></ul></div><p>
+            I costrutti <tt class="literal">inner join</tt>, <tt class="literal">left outer join</tt> e 
+            <tt class="literal">right outer join</tt> possono venire abbreviati.
+        </p><pre class="programlisting">from eg.Cat as cat 
+    join cat.mate as mate
+    left join cat.kittens as kitten</pre><p>
+            In aggiunta, un join di tipo "fetch" (raccolta) consente di inizializzare le 
+            associazioni o le collezioni insieme agli oggetti genitori, usando una singola
+            select. Questo &egrave; particolarmente utile nel caso di una collezione. Sovrascrive
+            in maniera efficace le dichiarazioni dei join esterni (outer join) e della
+            raccolta differita (lazy) del file di mappaggio per le associazioni e le 
+            collezioni.
+        </p><pre class="programlisting">from eg.Cat as cat 
+    inner join fetch cat.mate
+    left join fetch cat.kittens</pre><p>
+            Un "fetch join" (join con raccolta) non ha solitamente bisogno di assegnare un sinonimo,
+            perch&eacute; gli oggetti associati non dovrebbero venire usati nella clausola 
+            <tt class="literal">where</tt> (n&eacute; in un'altra clausola qualsiasi). Nello stesso modo, gli 
+            oggetti associati non vengono restituiti direttamente nei risultati della query. Possono,
+            invece, essere raggiunti tramite l'oggetto genitore
+        </p><p>
+            Notate che, nell'implementazione corrente, solo un ruolo di collezione pu&ograve; essere
+            concretizzato ("fetched") in una interrogazione (qualsiasi altra cosa non sarebbe
+            performante). Notate anche che il costrutto <tt class="literal">fetch</tt> non pu&ograve; essere
+            usato in interrogazioni chiamate usando <tt class="literal">scroll()</tt> o 
+            <tt class="literal">iterate()</tt>. Notate infine che <tt class="literal">full join fetch</tt> e 
+            <tt class="literal">right join fetch</tt> non hanno senso.
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="queryhql-select"></a>11.4.&nbsp;La clausola select</h2></div></div><div></div></div><p>
+            La clausola <tt class="literal">select</tt> sceglie quali oggetti e propriet&agrave; vanno restituiti
+            nel set dei risultati della query. Considerate che:
+        </p><pre class="programlisting">select mate 
+from eg.Cat as cat 
+    inner join cat.mate as mate</pre><p>
+            La query selezioner&agrave; gli amici (<tt class="literal">mate</tt>s) dei gatti (<tt class="literal">Cat</tt>s).
+            In realt&agrave; &egrave; possibile esprimere la stessa interrogazione in maniera pi&ugrave; compatta come:
+        </p><pre class="programlisting">select cat.mate from eg.Cat cat</pre><p>
+            Potete anche selezionare elementi di una collezione, usando la funzione speciale
+            <tt class="literal">elements</tt>. L'interrogazione seguente restituisce tutti i gattini
+            (kittens) di ogni gatto (cat).
+        </p><pre class="programlisting">select elements(cat.kittens) from eg.Cat cat</pre><p>
+            Le interrogazioni possono restituire propriet&agrave; di qualsiasi tipo di valore, comprese 
+            le propriet&agrave; di tipo componente:
+        </p><pre class="programlisting">select cat.name from eg.DomesticCat cat
+where cat.name like 'fri%'
+
+select cust.name.firstName from Customer as cust</pre><p>
+            Le interrogazioni possono restituire oggetti multipli e/o propriet&agrave; come un array di 
+            tipo <tt class="literal">Object[]</tt>
+        </p><pre class="programlisting">select mother, offspr, mate.name 
+from eg.DomesticCat as mother
+    inner join mother.mate as mate
+    left outer join mother.kittens as offspr</pre><p>
+            o come un oggetto java tipizzato
+        </p><pre class="programlisting">select new Family(mother, mate, offspr)
+from eg.DomesticCat as mother
+    join mother.mate as mate
+    left join mother.kittens as offspr</pre><p>
+            purch&eacute; ovviamente <tt class="literal">Family</tt> abbia un costruttore appropriato.
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="queryhql-aggregation"></a>11.5.&nbsp;Funzioni aggregate</h2></div></div><div></div></div><p>
+            Le query HQL possono anche restituire i risultati di funzioni aggregate sulle propriet&agrave;:
+        </p><pre class="programlisting">select avg(cat.weight), sum(cat.weight), max(cat.weight), count(cat)
+from eg.Cat cat</pre><p>
+            Le collezioni possono anche apparire all'interno di funzioni aggregate nella clausola 
+            <tt class="literal">select</tt>.
+        </p><pre class="programlisting">select cat, count( elements(cat.kittens) ) 
+from eg.Cat cat group by cat</pre><p>
+            Le funzioni aggregate supportate sono
+        </p><div class="itemizedlist"><ul type="disc" compact><li><p>
+                    <tt class="literal">avg(...), sum(...), min(...), max(...)</tt>
+                </p></li><li><p>
+                    <tt class="literal">count(*)</tt>
+                </p></li><li><p>
+                    <tt class="literal">count(...), count(distinct ...), count(all...)</tt>
+                </p></li></ul></div><p>
+            Le parole chiave <tt class="literal">distinct</tt> e <tt class="literal">all</tt> possono essere usate
+            con la stessa semantica dell'SQL.
+        </p><pre class="programlisting">select distinct cat.name from eg.Cat cat
+
+select count(distinct cat.name), count(cat) from eg.Cat cat</pre></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="queryhql-polymorphism"></a>11.6.&nbsp;Interrogazioni polimorfiche</h2></div></div><div></div></div><p>
+            Una interrogazione come:
+        </p><pre class="programlisting">from eg.Cat as cat</pre><p>
+            non restituisce solo istanze di <tt class="literal">Cat</tt>, ma anche delle sottoclassi come
+            <tt class="literal">DomesticCat</tt>. Le interrogazioni di Hibernate possono indicare 
+            <span class="emphasis"><em>qualsiasi</em></span> classe o interfaccia Java nella clausola 
+            <tt class="literal">from</tt>. L'interrogazione restituir&agrave; istanze di tutte le classi persistenti
+            che estendono quella classe o implementano l'interfaccia. La prossima interrogazione
+            restituisce tutti gli oggetti persistenti:
+        </p><pre class="programlisting">from java.lang.Object o</pre><p>
+            L'interfaccia <tt class="literal">Named</tt> potrebbe essere implementata da diverse classi 
+            persistenti: 
+        </p><pre class="programlisting">from eg.Named n, eg.Named m where n.name = m.name</pre><p>
+            Notate che queste ultime due interrogazioni richiederanno pi&ugrave; di una <tt class="literal">SELECT</tt>
+            SQL. Questo significa che la clausola <tt class="literal">order by</tt> non ordiner&agrave; correttamente
+            l'intero insieme dei risultati. (e significa anche che non potete chiamare le query usando 
+            <tt class="literal">Query.scroll()</tt>.)
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="queryhql-where"></a>11.7.&nbsp;La clausola where</h2></div></div><div></div></div><p>
+            La clausola <tt class="literal">where</tt> consente di limitare la lista di istanze rese da una 
+            interrogazione.
+        </p><pre class="programlisting">from eg.Cat as cat where cat.name='Fritz'</pre><p>
+            restituisce le istanze di <tt class="literal">Cat</tt> il cui nome (name) &egrave; 'Fritz'.
+        </p><pre class="programlisting">select foo 
+from eg.Foo foo, eg.Bar bar
+where foo.startDate = bar.date</pre><p>
+            restituir&agrave; tutte le istanze di <tt class="literal">Foo</tt> per le quali
+            esiste una istanza di <tt class="literal">bar</tt> con una propriet&agrave;
+            <tt class="literal">date</tt> uguale alla propriet&agrave; <tt class="literal">startDate</tt> 
+            del <tt class="literal">Foo</tt>. Le espressioni a percorso composto fanno s&igrave; che
+            la clausola <tt class="literal">where</tt> sia estremamente potente. Considerate:
+        </p><pre class="programlisting">from eg.Cat cat where cat.mate.name is not null</pre><p>
+            Questa interrogazione si traduce in una query SQL con un join di tabella (interno)
+            Se doveste scrivere una cosa come
+        </p><pre class="programlisting">from eg.Foo foo  
+where foo.bar.baz.customer.address.city is not null</pre><p>
+            otterreste una query che richiederebbe quattro join di tabella in SQL.
+        </p><p>
+            L'operatore <tt class="literal">=</tt> pu&ograve; essere usato per confrontare non solo propriet&agrave;, ma
+            anche istanze:
+        </p><pre class="programlisting">from eg.Cat cat, eg.Cat rival where cat.mate = rival.mate
+
+select cat, mate 
+from eg.Cat cat, eg.Cat mate
+where cat.mate = mate</pre><p>
+            La propriet&agrave; speciale (in minuscolo) <tt class="literal">id</tt> pu&ograve; essere usata per
+            fare riferimento all'identificatore univoco di un oggetto. (potete anche usare il 
+            suo nome di propriet&agrave;)
+        </p><pre class="programlisting">from eg.Cat as cat where cat.id = 123
+
+from eg.Cat as cat where cat.mate.id = 69</pre><p>
+            La seconda query &egrave; efficiente. Non &egrave; richiesto un join di tabella!
+        </p><p>
+            Possono anche essere usate le propriet&agrave; di identificatori compositi. Supponete che
+            <tt class="literal">Person</tt> abbia un identificatore composto che consiste in 
+            <tt class="literal">country</tt> e <tt class="literal">medicareNumber</tt>.
+        </p><pre class="programlisting">from bank.Person person
+where person.id.country = 'AU' 
+    and person.id.medicareNumber = 123456
+
+from bank.Account account
+where account.owner.id.country = 'AU' 
+    and account.owner.id.medicareNumber = 123456</pre><p>
+            Ancora una volta, la seconda interrogazione non richiede join di tabella.
+        </p><p>
+            Nello stesso modo, la propriet&agrave; speciale <tt class="literal">class</tt> accede al valore del 
+            discriminatore di una istanza nel caso della persistenza polimorfica. Un nome di classe
+            java annidato nella clausola where verr&agrave; tradotto nel suo valore di discriminazione.
+        </p><pre class="programlisting">from eg.Cat cat where cat.class = eg.DomesticCat</pre><p>
+            Potete anche specificare propriet&agrave; o componenti o tipi utente compositi (e di componenti di 
+            componenti, ecc.). Non tentate di utilizzare una espressione di percorso che finisca in una 
+            propriet&agrave; di tipo di componente (in opposizione ad una propriet&agrave; di un componente). Ad esempio,
+            se <tt class="literal">store.owner</tt> &egrave; una entit&agrave; con un componente indirizzo 
+            <tt class="literal">(address)</tt>
+        </p><pre class="programlisting">store.owner.address.city    // okay
+store.owner.address         // error!</pre><p>
+            Un tipo "any" ha le propriet&agrave; speciali <tt class="literal">id</tt> e <tt class="literal">class</tt>,
+            che consentono di esprimere un join nel modo seguente (in cui <tt class="literal">AuditLog.item</tt>
+            &egrave; una propriet&agrave; mappata con <tt class="literal">&lt;any&gt;</tt>).
+        </p><pre class="programlisting">from eg.AuditLog log, eg.Payment payment 
+where log.item.class = 'eg.Payment' and log.item.id = payment.id</pre><p>
+            Notate che <tt class="literal">log.item.class</tt> e <tt class="literal">payment.class</tt>
+            possono fare riferimento ai valori di colonne di database completamente diverse
+            nella query precedente.
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="queryhql-expressions"></a>11.8.&nbsp;Espressioni</h2></div></div><div></div></div><p>
+            Le espressioni consentite nella clausola <tt class="literal">where</tt> includono
+            la maggior parte delle cose che si scriverebbero in SQL:
+        </p><div class="itemizedlist"><ul type="disc" compact><li><p>
+                    operatori matematici <tt class="literal">+, -, *, /</tt>
+                </p></li><li><p>
+                    operatori di confronto binario <tt class="literal">=, &gt;=, &lt;=, &lt;&gt;, !=, like</tt>
+                </p></li><li><p>
+                    operazioni logiche <tt class="literal">and, or, not</tt>
+                </p></li><li><p>
+                    concatenamento di stringhe ||
+                </p></li><li><p>
+                    funzioni scalari SQL come <tt class="literal">upper()</tt> e
+                    <tt class="literal">lower()</tt>
+                </p></li><li><p>
+                    le parentesi <tt class="literal">( )</tt> indicano i raggruppamenti
+                </p></li><li><p>
+                    <tt class="literal">in</tt>,
+                    <tt class="literal">between</tt>,
+                    <tt class="literal">is null</tt>
+                </p></li><li><p>
+                    parametri di ingresso JDBC <tt class="literal">?</tt>
+                </p></li><li><p>
+                    parametri con nome <tt class="literal">:name</tt>, <tt class="literal">:start_date</tt>, <tt class="literal">:x1</tt>
+                </p></li><li><p>
+                    letterali SQL <tt class="literal">'foo'</tt>, <tt class="literal">69</tt>, <tt class="literal">'1970-01-01 10:00:01.0'</tt>
+                </p></li><li><p>
+                    costanti Java <tt class="literal">public static final</tt> come <tt class="literal">eg.Color.TABBY</tt>
+                </p></li></ul></div><p>
+            <tt class="literal">in</tt> e <tt class="literal">between</tt> possono essere usati cos&igrave;:
+        </p><pre class="programlisting">from eg.DomesticCat cat where cat.name between 'A' and 'B'
+
+from eg.DomesticCat cat where cat.name in ( 'Foo', 'Bar', 'Baz' )</pre><p>
+            e le corrispondenti forme negative possono essere scritte
+        </p><pre class="programlisting">from eg.DomesticCat cat where cat.name not between 'A' and 'B'
+
+from eg.DomesticCat cat where cat.name not in ( 'Foo', 'Bar', 'Baz' )</pre><p>
+            Nello stesso modo, <tt class="literal">is null</tt> e <tt class="literal">is not null</tt> possono essere usati
+            per testare i valori null.
+        </p><p>
+            I booleani possono essere utilizzati facilmente nelle espressioni dichiarando delle sostituzioni HQL
+            nella configurazione di hibernate:
+        </p><pre class="programlisting">&lt;property name="hibernate.query.substitutions"&gt;true 1, false 0&lt;/property&gt;</pre><p>
+            Questo sostituir&agrave; le parole chiave <tt class="literal">true</tt> e <tt class="literal">false</tt> con i
+            letterali <tt class="literal">1</tt> and <tt class="literal">0</tt> nell'SQL tradotto da questo HQL:
+        </p><pre class="programlisting">from eg.Cat cat where cat.alive = true</pre><p>
+            Potete controllare la dimensione di una collezione con la propriet&agrave; speciale <tt class="literal">size</tt>, o
+            la funzione speciale <tt class="literal">size()</tt>.
+        </p><pre class="programlisting">from eg.Cat cat where cat.kittens.size &gt; 0
+
+from eg.Cat cat where size(cat.kittens) &gt; 0</pre><p>
+            Per le collezioni indicizzate, potete fare riferimento agli indici minimo e massimo usando 
+            <tt class="literal">minIndex</tt> e <tt class="literal">maxIndex</tt>. Nello stesso modo, potete fare riferimento
+            agli elementi minimo e massimo di una collezione di un tipo di base usando <tt class="literal">minElement</tt> 
+            e <tt class="literal">maxElement</tt>.
+        </p><pre class="programlisting">from Calendar cal where cal.holidays.maxElement &gt; current date</pre><p>
+            Ci sono anche le forme funzionali (le quali, a differenza dei costrutti qui sopra, non sono sensibili a 
+            maiuscole e minuscole):
+        </p><pre class="programlisting">from Order order where maxindex(order.items) &gt; 100
+
+from Order order where minelement(order.items) &gt; 10000</pre><p>
+            Le funzioni SQL <tt class="literal">any, some, all, exists, in</tt> sono supportate quando viene loro 
+            passato l'insieme degli elementi o degli indici di una collezione (con le funzioni 
+            <tt class="literal">elements</tt> e <tt class="literal">indices</tt>) o il risultato di una sotto-interrogazione
+            (vedete oltre).
+        </p><pre class="programlisting">select mother from eg.Cat as mother, eg.Cat as kit
+where kit in elements(foo.kittens)
+
+select p from eg.NameList list, eg.Person p
+where p.name = some elements(list.names)
+
+from eg.Cat cat where exists elements(cat.kittens)
+
+from eg.Player p where 3 &gt; all elements(p.scores)
+
+from eg.Show show where 'fizard' in indices(show.acts)</pre><p>
+            Notate che questi costrutti - <tt class="literal">size</tt>, <tt class="literal">elements</tt>,
+            <tt class="literal">indices</tt>, <tt class="literal">minIndex</tt>, <tt class="literal">maxIndex</tt>,
+            <tt class="literal">minElement</tt>, <tt class="literal">maxElement</tt> - hanno alcune restrizioni
+            di utilizzo:
+        </p><div class="itemizedlist"><ul type="disc" compact><li><p>
+                    in una clausola <tt class="literal">where</tt>: solo per database con subselect
+                </p></li><li><p>
+                    in una clausola <tt class="literal">select</tt>: solo <tt class="literal">elements</tt> e
+                    <tt class="literal">indices</tt> hanno senso
+                </p></li></ul></div><p>
+            Gli elementi delle collezioni indicizzate (array, liste, mappe) possono essere 
+            reperiti tramite il loro indice (solo in una clausola where):
+        </p><pre class="programlisting">from Order order where order.items[0].id = 1234
+
+select person from Person person, Calendar calendar
+where calendar.holidays['national day'] = person.birthDay
+    and person.nationality.calendar = calendar
+
+select item from Item item, Order order
+where order.items[ order.deliveredItemIndices[0] ] = item and order.id = 11
+
+select item from Item item, Order order
+where order.items[ maxindex(order.items) ] = item and order.id = 11</pre><p>
+            Le espressioni all'interno di <tt class="literal">[]</tt> possono anche essere espressioni
+            matematiche.
+        </p><pre class="programlisting">select item from Item item, Order order
+where order.items[ size(order.items) - 1 ] = item</pre><p>
+            L'HQL fornisce anche la funzione predefinita <tt class="literal">index()</tt>, per gli elementi 
+            di una associazione uno-a-molti o una collezione di valori.
+        </p><pre class="programlisting">select item, index(item) from Order order 
+    join order.items item
+where index(item) &lt; 5</pre><p>
+            Possono essere usate le funzioni scalari SQL supportate dal database sottostante
+        </p><pre class="programlisting">from eg.DomesticCat cat where upper(cat.name) like 'FRI%'</pre><p>
+            Se non siete ancora convinti da tutto questo, pensate a quanto pi&ugrave; lunga e meno leggibile sarebbe la 
+            query seguente se dovesse essere espressa in SQL:
+        </p><pre class="programlisting">select cust
+from Product prod,
+    Store store
+    inner join store.customers cust
+where prod.name = 'widget'
+    and store.location.name in ( 'Melbourne', 'Sydney' )
+    and prod = all elements(cust.currentOrder.lineItems)</pre><p>
+            <span class="emphasis"><em>Suggerimento:</em></span> qualcosa come
+        </p><pre class="programlisting">SELECT cust.name, cust.address, cust.phone, cust.id, cust.current_order
+FROM customers cust,
+    stores store,
+    locations loc,
+    store_customers sc,
+    product prod
+WHERE prod.name = 'widget'
+    AND store.loc_id = loc.id
+    AND loc.name IN ( 'Melbourne', 'Sydney' )
+    AND sc.store_id = store.id
+    AND sc.cust_id = cust.id
+    AND prod.id = ALL(
+        SELECT item.prod_id
+        FROM line_items item, orders o
+        WHERE item.order_id = o.id
+            AND cust.current_order = o.id
+    )</pre></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="queryhql-ordering"></a>11.9.&nbsp;La clausola order by</h2></div></div><div></div></div><p>
+            La lista restituita da una query pu&ograve; essere ordinata secondo una qualsiasi propriet&agrave; di 
+            una delle classi restituite o dei componenti:
+        </p><pre class="programlisting">from eg.DomesticCat cat
+order by cat.name asc, cat.weight desc, cat.birthdate</pre><p>
+            Gli elementi opzionali <tt class="literal">asc</tt> o <tt class="literal">desc</tt> indicano rispettivamente ordine 
+            ascendente o discendente.
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="queryhql-grouping"></a>11.10.&nbsp;La clausola group by</h2></div></div><div></div></div><p>
+            Una interrogazione che renda valori aggregati pu&ograve; essere raggruppata in base a una propriet&agrave; qualunque
+            di una delle classi rese o dei componenti:
+        </p><pre class="programlisting">select cat.color, sum(cat.weight), count(cat) 
+from eg.Cat cat
+group by cat.color
+
+select foo.id, avg( elements(foo.names) ), max( indices(foo.names) ) 
+from eg.Foo foo
+group by foo.id</pre><p>
+            Nota: potete usare i costrutti <tt class="literal">elements</tt> e <tt class="literal">indices</tt> in
+            una clausola select, anche su database senza sub-select.
+        </p><p>
+            &Egrave; consentita anche la clausola <tt class="literal">having</tt>.
+        </p><pre class="programlisting">select cat.color, sum(cat.weight), count(cat) 
+from eg.Cat cat
+group by cat.color 
+having cat.color in (eg.Color.TABBY, eg.Color.BLACK)</pre><p>
+            Le funzioni SQL e le funzioni aggregate sono consentite nelle clausole <tt class="literal">having</tt>
+            e <tt class="literal">order by</tt>, se supportate dal database sottostante (ad esempio non in MySQL).
+        </p><pre class="programlisting">select cat
+from eg.Cat cat
+    join cat.kittens kitten
+group by cat
+having avg(kitten.weight) &gt; 100
+order by count(kitten) asc, sum(kitten.weight) desc</pre><p>
+            Notate che n&eacute; la clausola <tt class="literal">group by</tt> n&eacute; la 
+            <tt class="literal">order by</tt> possono contenere espressioni aritmetiche.
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="queryhql-subqueries"></a>11.11.&nbsp;Sottointerrogazioni</h2></div></div><div></div></div><p>
+            Per i database che supportano i sub-select, Hibernate supporta le sottointerrogazioni all'interno
+            delle interrogazioni. Una sottointerrogazione deve essere circondata da parentesi (spesso da una 
+            chiamata di funzione aggregata SQL). Sono permesse anche le sottointerrogazioni correlate (ovvero
+            quelle che fanno riferimento ad un sinonimo nella interrogazione esterna).
+        </p><pre class="programlisting">from eg.Cat as fatcat 
+where fatcat.weight &gt; ( 
+    select avg(cat.weight) from eg.DomesticCat cat 
+)
+
+from eg.DomesticCat as cat 
+where cat.name = some ( 
+    select name.nickName from eg.Name as name 
+)
+    
+from eg.Cat as cat 
+where not exists ( 
+    from eg.Cat as mate where mate.mate = cat 
+)
+
+from eg.DomesticCat as cat 
+where cat.name not in ( 
+    select name.nickName from eg.Name as name 
+)</pre></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="queryhql-examples"></a>11.12.&nbsp;Esempi HQL</h2></div></div><div></div></div><p>
+            Le interrogazioni di Hibernate possono essere abbastanza potenti e complesse. In effetti, il potere
+            del linguaggio di interrogazione &egrave; uno dei principali punti di forza di Hibernate. Qui presentiamo
+            alcuni esempi di interrogazioni molto simili a query che sono state usate in un recente procetto. 
+            Notate che molte delle interrogazioni che scriverete sono molto pi&ugrave; semplici di queste!
+        </p><p>
+            La prossima interrogazione restituisce l'id dell'ordine, il numero di oggetti e il valore totale
+            dell'ordine per tutti gli ordini non pagati per un cliente particolare e un valore totale minimo,
+            ordinando i risultati per valore totale. Nella determinazione dei prezzi, utilizza il catalogo 
+            corrente. La query SQL risultante, ha quattro join interni e una subselect non correlata che 
+            insistono sulle tabelle <tt class="literal">ORDER</tt>, <tt class="literal">ORDER_LINE</tt>, <tt class="literal">PRODUCT</tt>,
+            <tt class="literal">CATALOG</tt> e <tt class="literal">PRICE</tt>.
+        </p><pre class="programlisting">select order.id, sum(price.amount), count(item)
+from Order as order
+    join order.lineItems as item
+    join item.product as product,
+    Catalog as catalog
+    join catalog.prices as price
+where order.paid = false
+    and order.customer = :customer
+    and price.product = product
+    and catalog.effectiveDate &lt; sysdate
+    and catalog.effectiveDate &gt;= all (
+        select cat.effectiveDate 
+        from Catalog as cat
+        where cat.effectiveDate &lt; sysdate
+    )
+group by order
+having sum(price.amount) &gt; :minAmount
+order by sum(price.amount) desc</pre><p>
+            Che mostro! A dire il vero, nella vita reale non ho molta passione per le sottointerrogazioni, 
+            quindi la mia era pi&ugrave; come la seguente:
+        </p><pre class="programlisting">select order.id, sum(price.amount), count(item)
+from Order as order
+    join order.lineItems as item
+    join item.product as product,
+    Catalog as catalog
+    join catalog.prices as price
+where order.paid = false
+    and order.customer = :customer
+    and price.product = product
+    and catalog = :currentCatalog
+group by order
+having sum(price.amount) &gt; :minAmount
+order by sum(price.amount) desc</pre><p>
+            La prossima interrogazione conta il numero di pagamenti in ogni stato, escludendo tutti i 
+            pagamenti nello stato <tt class="literal">AWAITING_APPROVAL</tt> quando il cambiamento 
+            di stato pi&ugrave; recente era stato fatto dall'utente corrente. Si traduce in una query SLQ con 
+            due join interni e una subselect correlata sulle tabelle <tt class="literal">PAYMENT</tt>, 
+            <tt class="literal">PAYMENT_STATUS</tt> e <tt class="literal">PAYMENT_STATUS_CHANGE</tt>.
+        </p><pre class="programlisting">select count(payment), status.name 
+from Payment as payment 
+    join payment.currentStatus as status
+    join payment.statusChanges as statusChange
+where payment.status.name &lt;&gt; PaymentStatus.AWAITING_APPROVAL
+    or (
+        statusChange.timeStamp = ( 
+            select max(change.timeStamp) 
+            from PaymentStatusChange change 
+            where change.payment = payment
+        )
+        and statusChange.user &lt;&gt; :currentUser
+    )
+group by status.name, status.sortOrder
+order by status.sortOrder</pre><p>
+            Se avessi mappato la collezione <tt class="literal">statusChanges</tt> come una lista invece di un set, 
+            l'interrogazione sarebbe stata molto pi&ugrave; semplice da scrivere.
+        </p><pre class="programlisting">select count(payment), status.name 
+from Payment as payment
+    join payment.currentStatus as status
+where payment.status.name &lt;&gt; PaymentStatus.AWAITING_APPROVAL
+    or payment.statusChanges[ maxIndex(payment.statusChanges) ].user &lt;&gt; :currentUser
+group by status.name, status.sortOrder
+order by status.sortOrder</pre><p>
+            La prossima interrogazione usa la funzione <tt class="literal">isNull()</tt> di MS SQL Server 
+            per restituire tutti i conti e i pagamenti non effettuati per l'organizzazione a cui 
+            l'utente corrente appartiene. Si traduce in una query SQL con tre join interni, un join 
+            esterno e una subselect sulle tabelle <tt class="literal">ACCOUNT</tt>, <tt class="literal">PAYMENT</tt>, 
+            <tt class="literal">PAYMENT_STATUS</tt>, <tt class="literal">ACCOUNT_TYPE</tt>, <tt class="literal">ORGANIZATION</tt> e
+            <tt class="literal">ORG_USER</tt>.
+        </p><pre class="programlisting">select account, payment
+from Account as account
+    left outer join account.payments as payment
+where :currentUser in elements(account.holder.users)
+    and PaymentStatus.UNPAID = isNull(payment.currentStatus.name, PaymentStatus.UNPAID)
+order by account.type.sortOrder, account.accountNumber, payment.dueDate</pre><p>
+            Per alcuni database, avremmo bisogno di fare a meno della subselect correlata.
+        </p><pre class="programlisting">select account, payment
+from Account as account
+    join account.holder.users as user
+    left outer join account.payments as payment
+where :currentUser = user
+    and PaymentStatus.UNPAID = isNull(payment.currentStatus.name, PaymentStatus.UNPAID)
+order by account.type.sortOrder, account.accountNumber, payment.dueDate</pre></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="queryhql-tipstricks"></a>11.13.&nbsp;Suggerimenti</h2></div></div><div></div></div><p>
+            Potete contare il numero dei risultati di una interrogazione senza restituirli veramente:
+        </p><pre class="programlisting">( (Integer) session.iterate("select count(*) from ....").next() ).intValue()</pre><p>
+            Per ordinare un risultato per dimensione di una collezione, usate l'interrogazione seguente:
+        </p><pre class="programlisting">select usr.id, usr.name
+from User as usr 
+    left join usr.messages as msg
+group by usr.id, usr.name
+order by count(msg)</pre><p>
+            Se il vostro database supporta le sottointerrogazioni, potete mettere una condizione sulla
+            dimensione della selezione nella clausola where della vostra query:
+        </p><pre class="programlisting">from User usr where size(usr.messages) &gt;= 1</pre><p>
+            Mentre se il database non supporta i subselect potete usare la query seguente:
+        </p><pre class="programlisting">select usr.id, usr.name
+from User usr.name
+    join usr.messages msg
+group by usr.id, usr.name
+having count(msg) &gt;= 1</pre><p>
+            Poich&eacute; questa soluzione non pu&ograve; restituire uno <tt class="literal">User</tt> con zero messaggi
+            a causa del join interno, &egrave; anche utile la forma seguente:
+        </p><pre class="programlisting">select usr.id, usr.name
+from User as usr
+    left join usr.messages as msg
+group by usr.id, usr.name
+having count(msg) = 0</pre><p>
+            Le propriet&agrave; di un javabean possono essere assegnate a parametri della query con nome:
+        </p><pre class="programlisting">Query q = s.createQuery("from foo in class Foo where foo.name=:name and foo.size=:size");
+q.setProperties(fooBean); // fooBean has getName() and getSize()
+List foos = q.list();</pre><p>
+            Le collezioni sono paginabili usando l'interfaccia <tt class="literal">Query</tt> con un filtro:
+        </p><pre class="programlisting">Query q = s.createFilter( collection, "" ); // the trivial filter
+q.setMaxResults(PAGE_SIZE);
+q.setFirstResult(PAGE_SIZE * pageNumber);
+List page = q.list();</pre><p>
+            Gli elementi delle collezioni possono essere ordinati o raggruppati usando un filtro di 
+            interrogazione:
+        </p><pre class="programlisting">Collection orderedCollection = s.filter( collection, "order by this.amount" );
+Collection counts = s.filter( collection, "select this.type, count(this) group by this.type" );</pre><p>
+            Potete individuare la dimensione di una collezione senza inizializzarla:
+        </p><pre class="programlisting">( (Integer) session.iterate("select count(*) from ....").next() ).intValue();</pre></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="transactions.html">Indietro</a>&nbsp;</td><td width="20%" align="center"><a accesskey="u" href="index.html">Risali</a></td><td width="40%" align="right">&nbsp;<a accesskey="n" href="querycriteria.html">Avanti</a></td></tr><tr><td width="40%" align="left" valign="top">Capitolo&nbsp;10.&nbsp;Transazioni e concorrenza&nbsp;</td><td width="20%" align="center"><a accesskey="h" href="index.html">Partenza</a></td><td width="40%" align="right" valign="top">&nbsp;Capitolo&nbsp;12.&nbsp;Interrogazioni per criteri</td></tr></table></div></body></html>

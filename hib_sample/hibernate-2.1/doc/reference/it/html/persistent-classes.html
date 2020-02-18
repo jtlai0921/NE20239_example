@@ -1,0 +1,383 @@
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+   <title>Capitolo&nbsp;4.&nbsp;Le classi persistenti</title><link rel="stylesheet" href="../shared/css/html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.65.1"><link rel="home" href="index.html" title="HIBERNATE - Persistenza Relazionale Idiomatica per Java"><link rel="up" href="index.html" title="HIBERNATE - Persistenza Relazionale Idiomatica per Java"><link rel="previous" href="session-configuration.html" title="Capitolo&nbsp;3.&nbsp;Configurazione della SessionFactory"><link rel="next" href="mapping.html" title="Capitolo&nbsp;5.&nbsp;Mappaggio O/R di base"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Capitolo&nbsp;4.&nbsp;Le classi persistenti</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="session-configuration.html">Indietro</a>&nbsp;</td><th width="60%" align="center">&nbsp;</th><td width="20%" align="right">&nbsp;<a accesskey="n" href="mapping.html">Avanti</a></td></tr></table><hr></div><div class="chapter" lang="it"><div class="titlepage"><div><div><h2 class="title"><a name="persistent-classes"></a>Capitolo&nbsp;4.&nbsp;Le classi persistenti</h2></div></div><div></div></div><p>
+        Le classi persistenti sono quelle che in un'applicazione implementano le 
+        entit&agrave; del problema di business (ad esempio Customer e Order in una applicazione
+        di e-commerce). Le classi persistenti hanno, come implica il nome, istanze 
+        transienti ed istanze persistenti memorizzate nel database.
+    </p><p>
+        Hibernate funziona meglio se queste classi seguono alcune semplici regole,
+        conosciute anche come il modello di programmazione dei "cari vecchi oggetti 
+        java" (in inglese e nel seguito si usa l'acronimo POJO che sta per 
+        "Plain Old Java Object").
+    </p><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="persistent-classes-pojo"></a>4.1.&nbsp;Un semplice esempio POJO</h2></div></div><div></div></div><p>
+            La maggior parte delle applicazioni java richiede una classe persistente che 
+            rappresenti dei felini...
+        </p><pre class="programlisting">package eg;
+import java.util.Set;
+import java.util.Date;
+
+public class Cat {
+    private Long id; // identificatore
+    private String name;
+    private Date birthdate;
+    private Cat mate;
+    private Set kittens
+    private Color color;
+    private char sex;
+    private float weight;
+
+    private void setId(Long id) {
+        this.id=id;
+    }
+    public Long getId() {
+        return id;
+    }
+
+    void setName(String name) {
+        this.name = name;
+    }
+    public String getName() {
+        return name;
+    }
+
+    void setMate(Cat mate) {
+        this.mate = mate;
+    }
+    public Cat getMate() {
+        return mate;
+    }
+
+    void setBirthdate(Date date) {
+        birthdate = date;
+    }
+    public Date getBirthdate() {
+        return birthdate;
+    }
+    void setWeight(float weight) {
+        this.weight = weight;
+    }
+    public float getWeight() {
+        return weight;
+    }
+
+    public Color getColor() {
+        return color;
+    }
+    void setColor(Color color) {
+        this.color = color;
+    }
+    void setKittens(Set kittens) {
+        this.kittens = kittens;
+    }
+    public Set getKittens() {
+        return kittens;
+    }
+    // addKitten non &egrave; richiesto da Hibernate
+    public void addKitten(Cat kitten) {
+        kittens.add(kitten);
+    }
+    void setSex(char sex) {
+        this.sex=sex;
+    }
+    public char getSex() {
+        return sex;
+    }
+}</pre><p>
+            Ci sono quattro regole principali da seguire, qui:
+        </p><div class="sect2" lang="it"><div class="titlepage"><div><div><h3 class="title"><a name="persistent-classes-pojo-accessors"></a>4.1.1.&nbsp;Dichiarate metodi di accesso e di impostazione (get e set) per i campi persistenti</h3></div></div><div></div></div><p>
+                <tt class="literal">Cat</tt> dichiara metodi di accesso per tutti i suoi campi persistenti.
+                Molti altri strumenti di mappaggio OR rendono direttamente persistenti le variabili
+                di istanza. Crediamo che sia molto meglio disaccoppiare questo dettaglio implementativo dal
+                meccanismo di persistenza. Hibernate rende persistenti le propriet&agrave; nello stile dei JavaBeans, 
+                e riconosce i nomi di metodo nella forma <tt class="literal">getFoo</tt>, <tt class="literal">isFoo</tt> e
+                <tt class="literal">setFoo</tt>.
+            </p><p>
+                <span class="emphasis"><em>Non</em></span> &egrave; necessario che le propriet&agrave; siano dichiarate "public" - Hibernate
+                pu&ograve; rendere persistenti propriet&agrave; con coppie di metodi get/ set a visibilit&agrave; default, 
+                <tt class="literal">protected</tt> o <tt class="literal"> private</tt>.
+            </p></div><div class="sect2" lang="it"><div class="titlepage"><div><div><h3 class="title"><a name="persistent-classes-pojo-constructor"></a>4.1.2.&nbsp;Implementate un costruttore di default</h3></div></div><div></div></div><p>
+                <tt class="literal">Cat</tt> ha un costruttore di default (senza argomenti) implicito. 
+                Tutte le classi persistenti devono avere un costruttore di default (che pu&ograve; non 
+                essere pubblico), in modo tale che Hibernate possa costruirle usando 
+                <tt class="literal">Constructor.newInstance()</tt>.
+            </p></div><div class="sect2" lang="it"><div class="titlepage"><div><div><h3 class="title"><a name="persistent-classes-pojo-identifier"></a>4.1.3.&nbsp;Fornite una propriet&agrave; identificatore (opzionale)</h3></div></div><div></div></div><p>
+                <tt class="literal">Cat</tt> ha una propriet&agrave; chiamata <tt class="literal">id</tt>. Questa
+                propriet&agrave; contiene il valore della chiave primaria di una tabella di database. La
+                propriet&agrave; avrebbe potuto essere chiamata in un modo qualunque, e il suo tipo poteva
+                essere un qualsiasi tipo primitivo, un "incapsulatore" ("wrapper") di tipi primitivi,
+                <tt class="literal">java.lang.String</tt> o <tt class="literal">java.util.Date</tt>. (Se 
+                la vostra tabella di database preesistente ha chiavi composte, potete anche usare
+                una classe definita da voi con le propriet&agrave; dei tipi delle colonne usate nella chiave - 
+                leggete la sezione sugli identificatori composti pi&ugrave; avanti.)
+            </p><p>
+                La propriet&agrave; identificatore &egrave; opzionale. Potete farne a meno, e Hibernate
+                terr&agrave; traccia internamente degli identificatori degli oggetti. In ogni caso,
+                per molte applicazioni &egrave; comunque una buona (e molto popolare) decisione di 
+                progetto.
+            </p><p>
+                In pi&ugrave;, alcune funzionalit&agrave; sono possibili solo per classi che dichiarano 
+                una propriet&agrave; identificatore:
+            </p><div class="itemizedlist"><ul type="disc" compact><li><p>
+                        Aggiornamenti a cascata (vedete "oggetti del ciclo di vita")
+                    </p></li><li><p>
+                        <tt class="literal">Session.saveOrUpdate()</tt>
+                    </p></li></ul></div><p>
+                Vi raccomandiamo di dichiarare propriet&agrave; identificatore con nomi coerenti per
+                le classi persistenti, e che usiate un tipo annullabile (cio&egrave; non primitivo).
+            </p></div><div class="sect2" lang="it"><div class="titlepage"><div><div><h3 class="title"><a name="persistent-classes-pojo-final"></a>4.1.4.&nbsp;Preferite classi non-final (opzionale)</h3></div></div><div></div></div><p>
+                Una funzionalit&agrave; centrale di Hibernate, ovvero i <span class="emphasis"><em>mediatori</em></span>
+                ("proxy" in inglese), dipende dal fatto che la classe persistente sia non-final
+                o che sia l'implementazione di un'interfaccia che dichiara tutti i suoi metodi
+                pubblici.
+            </p><p>
+                Potete rendere persistenti classi <tt class="literal">final</tt> che non implementino 
+                un'interfaccia, con hibernate, ma non potrete usare i mediatori - cosa che limiter&agrave;
+                in qualche modo le vostre opzioni per l'ottimizzazione delle prestazioni.
+            </p></div></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="persistent-classes-inheritance"></a>4.2.&nbsp;Utilizzo dell'ereditariet&agrave;</h2></div></div><div></div></div><p>
+            Anche una sottoclasse deve osservare la prima e la seconda regola. Eredita 
+            la sua propriet&agrave; di identificazione da <tt class="literal">Cat</tt>.
+        </p><pre class="programlisting">package eg;
+
+public class DomesticCat extends Cat {
+        private String name;
+
+        public String getName() {
+                return name;
+        }
+        protected void setName(String name) {
+                this.name=name;
+        }
+}</pre></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="persistent-classes-equalshashcode"></a>4.3.&nbsp;Implementate <tt class="literal">equals()</tt> e <tt class="literal">hashCode()</tt></h2></div></div><div></div></div><p>
+            Dovete sovrascrivere i metodi <tt class="literal">equals()</tt> e <tt class="literal">hashCode()</tt>
+            se volete mischiare oggetti di classi persistenti (ad esempio in un <tt class="literal">Set</tt>).
+        </p><p>
+            <span class="emphasis"><em>Questo vale solo se questi oggetti vengono caricati in due 
+            <tt class="literal">Session</tt>i differenti, poich&eacute; Hibernate garantisce l'uguaglianza degli oggetti
+            (<tt class="literal"> a == b </tt>, l'implementazione di default di <tt class="literal">equals()</tt>) solo 
+            all'interno di una singola <tt class="literal">Session</tt>!</em></span>
+        </p><p>
+            Anche se entrambi gli oggetti <tt class="literal">a</tt> e <tt class="literal">b</tt> sono la stessa riga di 
+            database (hanno come identificatore lo stesso valore della chiave primaria), al di fuori del 
+            contesto di una particolare <tt class="literal">Session</tt> non possiamo garantire che siano la stessa 
+            istanza di oggetto Java.
+        </p><p>
+            La maniera pi&ugrave; ovvia &egrave; di implementare <tt class="literal">equals()</tt>/<tt class="literal">hashCode()</tt>
+            confrontando il valore di identificazione di entrambi gli oggetti. Se il valore &egrave; lo stesso, 
+            deve trattarsi della stessa riga di database, e quindi sono uguali (cio&egrave; se vengono entrambe
+            aggiunte ad un <tt class="literal">Set</tt>, avremo solo un elemento al suo interno, dopo). 
+            Sfortunatamente, non possiamo usare questo approccio. Hibernate assegna valori di 
+            identificazione solo agli oggetti che sono persistenti, mentre una istanza appena creata non 
+            avr&agrave; alcun valore di identificatore! Quello che consigliamo, &egrave; di implementare
+            <tt class="literal">equals()</tt> e <tt class="literal">hashCode()</tt> usando un concetto di 
+            <span class="emphasis"><em>chiave di uguaglianza di business</em></span>.
+        </p><p>
+            "Chiave di uguaglianza di business" significa che il metodo <tt class="literal">equals()</tt>
+            confronta solo le propriet&agrave; che formano la chiave di business, una chiave che 
+            identificherebbe la nostra istanza nel mondo reale (cio&egrave; una chiave candidata 
+            <span class="emphasis"><em>naturale</em></span>):
+        </p><pre class="programlisting">public class Cat {
+
+    ...
+    public boolean equals(Object other) {
+        if (this == other) return true;
+        if (!(other instanceof Cat)) return false;
+
+        final Cat cat = (Cat) other;
+
+        if (!getName().equals(cat.getName())) return false;
+        if (!getBirthday().equals(cat.getBirthday())) return false;
+
+        return true;
+    }
+
+    public int hashCode() {
+        int result;
+        result = getName().hashCode();
+        result = 29 * result + getBirthday().hashCode();
+        return result;
+    }
+
+}</pre><p>
+            Ricordatevi che la nostra chiave candidata (in questo caso si tratta della 
+            composizione di nome e data di nascita) deve essere valida solo per una particolare
+            operazione di confronto (magari solo in un singolo caso d'uso). Non abbiamo bisogno
+            dei parametri di stabilit&agrave; che solitamente si applicano ad una vera chiave primaria!
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="persistent-classes-lifecycle"></a>4.4.&nbsp;Punti di richiamo del ciclo di vita degli oggetti ("lifecycle callbacks")</h2></div></div><div></div></div><p>
+            Una classe persistente pu&ograve; implementare in via opzionale l'interfaccia
+            <tt class="literal">Lifecycle</tt> che fornisce alcuni punti di aggancio che
+            consentono all'oggetto persistente di effettuare operazioni di 
+            inizializzazione/pulizia dopo un salvataggio o un caricamento, e prima
+            di una cancellazione o un aggiornamento.
+        </p><p>
+            
+            La classe <tt class="literal">Interceptor</tt> offre comunque una alternativa
+            meno instrusiva, comunque.
+        </p><div class="programlistingco"><pre class="programlisting">public interface Lifecycle {
+        public boolean onSave(Session s) throws CallbackException;   <span class="co">(1)</span>
+        public boolean onUpdate(Session s) throws CallbackException; <span class="co">(2)</span>
+        public boolean onDelete(Session s) throws CallbackException; <span class="co">(3)</span>
+        public void onLoad(Session s, Serializable id);              <span class="co">(4)</span>
+}</pre><div class="calloutlist"><table border="0" summary="Callout list"><tr><td width="5%" valign="top" align="left">(1)</td><td valign="top" align="left"><p>
+                        <tt class="literal">onSave</tt> - chiamato subito prima che l'oggetto 
+                        venga salvato o inserito
+                    </p></td></tr><tr><td width="5%" valign="top" align="left">(2)</td><td valign="top" align="left"><p>
+                        <tt class="literal">onUpdate</tt> - chiamato subito prima che un oggetto
+                        venga aggiornato (quando viene passato a <tt class="literal">Session.update()</tt>)
+                    </p></td></tr><tr><td width="5%" valign="top" align="left">(3)</td><td valign="top" align="left"><p>
+                        <tt class="literal">onDelete</tt> - chiamato subito prima che un oggetto venga 
+                        cancellato
+                    </p></td></tr><tr><td width="5%" valign="top" align="left">(4)</td><td valign="top" align="left"><p>
+                        <tt class="literal">onLoad</tt> - chiamato subito dopo che un oggetto &egrave; caricatocalled just after an object is loaded
+                    </p></td></tr></table></div></div><p>
+            <tt class="literal">onSave()</tt>, <tt class="literal">onDelete()</tt> e
+            <tt class="literal">onUpdate()</tt> possono essere usati per propagare
+            salvataggi e cancellazioni degli oggetti dipendenti. &Egrave; un'alternativa 
+            alla dichiarazione di operazioni di cascata nel file di mappaggio. 
+            <tt class="literal">onLoad()</tt> pu&ograve; essere usato per inizializzare propriet&agrave; 
+            dell'oggetto dal suo stato persistente. Non pu&ograve; essere usato per caricare
+            oggetti dipendenti poich&eacute; l'interfaccia <tt class="literal">Session</tt> 
+            non pu&ograve; venire chiamata dall'interno del metodo. L'utilizzo ulteriore di
+            <tt class="literal">onLoad()</tt>, <tt class="literal">onSave()</tt> e 
+            <tt class="literal">onUpdate()</tt> &egrave; per memorizzare un riferimento alla 
+            <tt class="literal">Session</tt> corrente per utilizzi successivi.
+        </p><p>
+            Notate che <tt class="literal">onUpdate()</tt> non viene chiamato ogni volta
+            che lo stato persistente dell'oggetto viene modificato, ma solo quando l'oggetto
+            transiente viene passato a <tt class="literal">Session.update()</tt>.
+        </p><p>
+            Se <tt class="literal">onSave()</tt>, <tt class="literal">onUpdate()</tt> o
+            <tt class="literal">onDelete()</tt> restituiscono <tt class="literal">true</tt>, l'operazione
+            viene silenziosamente impedita. Se viene lanciata una <tt class="literal">CallbackException</tt>, 
+            l'operazione &egrave; proibita e l'eccezione viene restituita all'applicazione.
+        </p><p>
+            Notate che <tt class="literal">onSave()</tt> viene chiamata dopo che un identificatore sia
+            assegnato all'oggetto, eccetto quando viene usata la strategia di generazione di chiavi 
+            nativa.
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="persistent-classes-validatable"></a>4.5.&nbsp;Punto di aggancio (callback) Validatable</h2></div></div><div></div></div><p>
+            Se la classe persistente ha bisogno di controllare degli invarianti
+            prima che il suo stato sia reso persistente, pu&ograve; implementare 
+            l'interfaccia seguente:
+        </p><pre class="programlisting">public interface Validatable {
+        public void validate() throws ValidationFailure;
+}</pre><p>
+            L'oggetto dovrebbe lanciare una <tt class="literal">ValidationFailure</tt> se 
+            &egrave; stato violato qualche invariante. Un'istanza di <tt class="literal">Validatable</tt> 
+            non dovrebbe per&ograve; cambiare il suo stato, dall'interno di <tt class="literal">validate()</tt>.
+        </p><p>
+            A differenza dei metodi di richiamo dell'interfaccia <tt class="literal">Lifecycle</tt>, 
+            <tt class="literal">validate()</tt> potrebbe venire chiamata in momenti imprevisti. 
+            L'applicazione non dovrebbe affidarsi alle chiamate a <tt class="literal">validate()</tt> 
+            per implementare funzionalit&agrave; di business.
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="persistent-classes-xdoclet"></a>4.6.&nbsp;Utilizzo del contrassegno (markup) di XDoclet</h2></div></div><div></div></div><p>
+            Nel prossimo capitolo mostreremo come i mappaggi di Hibernate possano venire
+            espressi usando un formato XML semplice e leggibile. Molti utenti di Hibernate
+            preferiscono inserire l'informazione di mappaggio direttamente nel codice 
+            sorgente usando gli <tt class="literal">@hibernate.tags</tt> di XDoclet.
+            Non parleremo qui di questo approccio poich&eacute; viene considerato strettamente parte
+            di XDoclet. Tuttavia includiamo l'esempio seguente della classe <tt class="literal">Cat</tt>
+            con i mappaggi di XDoclet.
+        </p><pre class="programlisting">package eg;
+import java.util.Set;
+import java.util.Date;
+
+/**
+ * @hibernate.class
+ *  table="CATS"
+ */
+public class Cat {
+    private Long id; // identifier
+    private Date birthdate;
+    private Cat mate;
+    private Set kittens
+    private Color color;
+    private char sex;
+    private float weight;
+
+    /**
+     * @hibernate.id
+     *  generator-class="native"
+     *  column="CAT_ID"
+     */
+    public Long getId() {
+        return id;
+    }
+    private void setId(Long id) {
+        this.id=id;
+    }
+
+    /**
+     * @hibernate.many-to-one
+     *  column="MATE_ID"
+     */
+    public Cat getMate() {
+        return mate;
+    }
+    void setMate(Cat mate) {
+        this.mate = mate;
+    }
+
+    /**
+     * @hibernate.property
+     *  column="BIRTH_DATE"
+     */
+    public Date getBirthdate() {
+        return birthdate;
+    }
+    void setBirthdate(Date date) {
+        birthdate = date;
+    }
+    /**
+     * @hibernate.property
+     *  column="WEIGHT"
+     */
+    public float getWeight() {
+        return weight;
+    }
+    void setWeight(float weight) {
+        this.weight = weight;
+    }
+
+    /**
+     * @hibernate.property
+     *  column="COLOR"
+     *  not-null="true"
+     */
+    public Color getColor() {
+        return color;
+    }
+    void setColor(Color color) {
+        this.color = color;
+    }
+    /**
+     * @hibernate.set
+     *  lazy="true"
+     *  order-by="BIRTH_DATE"
+     * @hibernate.collection-key
+     *  column="PARENT_ID"
+     * @hibernate.collection-one-to-many
+     */
+    public Set getKittens() {
+        return kittens;
+    }
+    void setKittens(Set kittens) {
+        this.kittens = kittens;
+    }
+    // addKitten not needed by Hibernate
+    public void addKitten(Cat kitten) {
+        kittens.add(kitten);
+    }
+
+    /**
+     * @hibernate.property
+     *  column="SEX"
+     *  not-null="true"
+     *  update="false"
+     */
+    public char getSex() {
+        return sex;
+    }
+    void setSex(char sex) {
+        this.sex=sex;
+    }
+}</pre></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="session-configuration.html">Indietro</a>&nbsp;</td><td width="20%" align="center"><a accesskey="u" href="index.html">Risali</a></td><td width="40%" align="right">&nbsp;<a accesskey="n" href="mapping.html">Avanti</a></td></tr><tr><td width="40%" align="left" valign="top">Capitolo&nbsp;3.&nbsp;Configurazione della SessionFactory&nbsp;</td><td width="20%" align="center"><a accesskey="h" href="index.html">Partenza</a></td><td width="40%" align="right" valign="top">&nbsp;Capitolo&nbsp;5.&nbsp;Mappaggio O/R di base</td></tr></table></div></body></html>

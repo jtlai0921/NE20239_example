@@ -1,0 +1,64 @@
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+   <title>Prefazione</title><link rel="stylesheet" href="../shared/css/html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.65.1"><link rel="home" href="index.html" title="HIBERNATE - Persistenza Relazionale Idiomatica per Java"><link rel="up" href="index.html" title="HIBERNATE - Persistenza Relazionale Idiomatica per Java"><link rel="previous" href="index.html" title="HIBERNATE - Persistenza Relazionale Idiomatica per Java"><link rel="next" href="quickstart.html" title="Capitolo&nbsp;1.&nbsp;Primi passi con Tomcat"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Prefazione</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="index.html">Indietro</a>&nbsp;</td><th width="60%" align="center">&nbsp;</th><td width="20%" align="right">&nbsp;<a accesskey="n" href="quickstart.html">Avanti</a></td></tr></table><hr></div><div class="preface" lang="it"><div class="titlepage"><div><div><h2 class="title"><a name="preface"></a>Prefazione</h2></div></div><div></div></div><p>
+            WARNING! This is a translated version of the English Hibernate reference
+            documentation. The translated version might not be up to date! However, the
+            differences should only be very minor. Consult the English reference
+            documentation if you are missing information or encounter a translation
+            error. If you like to contribute to a particular translation, contact us
+            on the Hibernate developer mailing list.
+        </p><p>
+            Translator(s): Davide Baroncelli &lt;baroncelli@yahoo.com&gt;
+        </p><p>
+	    Lavorare con linguaggi orientati agli oggetti e database relazionale negli odierni ambienti aziendali 
+	    pu&ograve; essere difficoltoso e temporalmente impegnativo. Hibernate &egrave; uno strumento di mappaggio tra oggetti e relazioni (OR)
+	    per gli ambienti basati su java. Il termine "mappaggio oggetto-relazionale" ("object relational mapping" o ORM in inglese)
+	    si riferisce alla tecnica di creare una corrispondenza (mappare) tra una rappresentazione di dati secondo il modello a oggetti ed 
+	    quella secondo il modello relazionale, con uno schema basato su SQL.
+        </p><p>
+	    Hibernate si occupa non solo del mappaggio dalle classi Java alle tabelle della base di dati 
+	    (e dai tipi di dato Java a quelli SQL), ma fornisce anche funzionalit&agrave; di interrogazione e recupero dei dati
+	    (query), e pu&ograve; ridurre significativamente i tempi di sviluppo altrimenti impiegati in attivit&agrave; manuali di
+	    gestione dei dati in SQL e JDBC.
+        </p><p>
+	    Lo scopo di Hibernate &egrave; di alleviare lo sviluppatore dal 95% dei pi&ugrave; comuni compiti
+	    di programmazione legati alla persistenza dei dati. Hibernate pu&ograve; non essere la soluzione
+	    migliore per le applicazioni data-centriche che usano solo stored-procedures per implementare
+	    la logica di business nel database; &egrave; principalmente utile con modelli di dominio orientati agli 
+	    oggetti in cui la logica di business sia collocata nello strato intermedio di oggetti Java (middle-tier).
+	    In ogni caso, Hibernate pu&ograve; aiutare senza dubbio a rimuovere o incapsulare codice SQL che sia dipendente
+	    dal particolare fornitore, e aiutare con i compiti pi&ugrave; comuni di traduzione dei set di risultati (result set)
+	    da una rappresentazione tabellare ad un grafo di oggetti.
+        </p><p>
+	    Se sei un principiante di Hibernate e del mappaggio OR o addirittura di Java, ti preghiamo di 
+	    seguire questi passi:
+        </p><div class="orderedlist"><ol type="1"><li><p>
+		    Leggi <a href="quickstart.html" title="Capitolo&nbsp;1.&nbsp;Primi passi con Tomcat">Capitolo&nbsp;1, <i>Primi passi con Tomcat</i></a>: &egrave; un'introduzione di mezz'ora che usa Tomcat.
+                </p></li><li><p>
+                    Leggi <a href="architecture.html" title="Capitolo&nbsp;2.&nbsp;Architettura">Capitolo&nbsp;2, <i>Architettura</i></a> per capire in quali contesti Hibernate pu&ograve; essere usato.
+                </p></li><li><p>
+		    Dai un'occhiata alla cartella <tt class="literal">eg/</tt> nella distribuzione di Hibernate,
+		    contiene una semplice applicazione "standalone". Copia il tuo driver JDBC nella cartella
+		    <tt class="literal">lib/</tt> e modifica <tt class="literal">src/hibernate.properties</tt>,
+		    specificando valori corretti per il tuo database. Da una finestra di terminale aperta
+		    nella cartella di distribuzione digita <tt class="literal">ant eg</tt> (usando Ant) o, se in Windows, digita
+                    <tt class="literal">build eg</tt>.
+                </p></li><li><p>
+		    Usa questa documentazione di riferimento come la tua fonte principale di informazioni.
+                </p></li><li><p>
+					Sul sito di Hibernate &egrave; possibile trovare le risposte alle domande pi&ugrave; frequenti (FAQ)
+				</p></li><li><p>
+				        Sempre sul sito, &egrave; possibile trovare esempi, demo di terze parti e tutorial.
+				</p></li><li><p>
+		    L'area di community sul sito di Hibernate &egrave; una buona fonte di pattern di design e varie soluzioni 
+		    di utilizzo integrato di Hibernate (con Tomcat, Jboss, Spring, Struts, EJB, ecc.).
+                </p></li></ol></div><p>
+	     Se hai domande, usa il forum di cui trovi il link sul sito di Hibernate. &Egrave; anche disponibile
+	     un sistema di "issue tracking" (tracciamento dei problemi) JIRA per segnalare bachi e richiedere
+	     funzionalit&agrave;. Se sei interessato nello sviluppo di Hibernate, iscriviti alla mailing list degli 
+	     sviluppatori.
+         </p><p>
+	     Sono disponibili contratti di sviluppo su base commerciale, supporto per sistemi in produzione e 
+	     formazione su Hibernate tramite il JBoss Inc. (vedi http://www.hibernate.org/SupportTraining/). 
+	     Hibernate &egrave; un progetto della suite di prodotti "JBoss Professional Open Source".
+         </p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="index.html">Indietro</a>&nbsp;</td><td width="20%" align="center"><a accesskey="u" href="index.html">Risali</a></td><td width="40%" align="right">&nbsp;<a accesskey="n" href="quickstart.html">Avanti</a></td></tr><tr><td width="40%" align="left" valign="top">HIBERNATE - Persistenza Relazionale Idiomatica per Java&nbsp;</td><td width="20%" align="center"><a accesskey="h" href="index.html">Partenza</a></td><td width="40%" align="right" valign="top">&nbsp;Capitolo&nbsp;1.&nbsp;Primi passi con Tomcat</td></tr></table></div></body></html>

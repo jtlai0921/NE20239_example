@@ -1,0 +1,670 @@
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+   <title>Capitolo&nbsp;6.&nbsp;Mappaggio delle collezioni</title><link rel="stylesheet" href="../shared/css/html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.65.1"><link rel="home" href="index.html" title="HIBERNATE - Persistenza Relazionale Idiomatica per Java"><link rel="up" href="index.html" title="HIBERNATE - Persistenza Relazionale Idiomatica per Java"><link rel="previous" href="mapping.html" title="Capitolo&nbsp;5.&nbsp;Mappaggio O/R di base"><link rel="next" href="components.html" title="Capitolo&nbsp;7.&nbsp;Mappaggio dei componenti"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Capitolo&nbsp;6.&nbsp;Mappaggio delle collezioni</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="mapping.html">Indietro</a>&nbsp;</td><th width="60%" align="center">&nbsp;</th><td width="20%" align="right">&nbsp;<a accesskey="n" href="components.html">Avanti</a></td></tr></table><hr></div><div class="chapter" lang="it"><div class="titlepage"><div><div><h2 class="title"><a name="collections"></a>Capitolo&nbsp;6.&nbsp;Mappaggio delle collezioni</h2></div></div><div></div></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="collections-persistent"></a>6.1.&nbsp;Collezioni persistenti</h2></div></div><div></div></div><p>
+            Questa sezione non contiene molto codice Java di esempio. Diamo per scontato che
+            conosciate gi&agrave; come usare l'infrastruttura delle collezioni in Java. Se &egrave; cos&igrave;, 
+            non c'&egrave; davvero niente di pi&ugrave; da sapere - con un'unica avvertenza, potete usare
+            le collezioni di Java nello stesso modo in cui avete sempre fatto.
+        </p><p>
+            Hibernate pu&ograve; rendere persistenti istanze di 
+            <tt class="literal">java.util.Map</tt>,
+            <tt class="literal">java.util.Set</tt>,
+            <tt class="literal">java.util.SortedMap</tt>,
+            <tt class="literal">java.util.SortedSet</tt>,
+            <tt class="literal">java.util.List</tt>,
+            e qualsiasi array di entit&agrave; persistenti o valori. Le propriet&agrave; di tipo
+            <tt class="literal">java.util.Collection</tt> or
+            <tt class="literal">java.util.List</tt>
+            possono anche essere rese persistenti con semantiche a "sacco" ("bag").
+        </p><p>
+            Ed ora l'avvertenza: le collezioni persistenti non mantengono nessuna semantica aggiunta dalla
+            classe che implementa l'interfaccia di base della collezione particolare (come ad esempio l'ordine
+            di iterazione in un <tt class="literal">LinkedHashSet</tt>).
+            Le collezioni persistenti in particolare si comportano come
+            <tt class="literal">HashMap</tt>,
+            <tt class="literal">HashSet</tt>,
+            <tt class="literal">TreeMap</tt>,
+            <tt class="literal">TreeSet</tt> e
+            <tt class="literal">ArrayList</tt>
+            rispettivamente. Inoltre, il tipo di oggetto java di una propriet&agrave; che contiene una collezione, deve
+            essere quello dell'interfaccia (ovvero <tt class="literal">Map</tt>, <tt class="literal">Set</tt> o
+            <tt class="literal">List</tt>; mai <tt class="literal">HashMap</tt>, <tt class="literal">TreeSet</tt> o
+            <tt class="literal">ArrayList</tt>). Questa restrizione esiste perch&eacute;, a vostra insaputa, Hibernate
+            sostituisce le istanze di <tt class="literal">Map</tt>, <tt class="literal">Set</tt>
+            e <tt class="literal">List</tt> con istanze delle sue implementazioni persistenti di queste interfacce. 
+            Per questo motivo, dovete anche fare attenzione quando usate <tt class="literal">==</tt> sulle collezioni.
+        </p><pre class="programlisting">Cat cat = new DomesticCat();
+Cat kitten = new DomesticCat();
+....
+Set kittens = new HashSet();
+kittens.add(kitten);
+cat.setKittens(kittens);
+session.save(cat);
+kittens = cat.getKittens(); //Ok, la collezione "kittens" &egrave; un Set
+(HashSet) cat.getKittens(); //Errore!</pre><p>
+            Le collezioni rispettano le normali regole per i tipi di valore: niente riferimenti 
+            condivisi, vengono create e cancellate insieme all'entit&agrave; che le contiene. A causa
+            delle caratteristiche del modello relazionale sottostante, non sopportano semantiche
+            a valore nullo: Hibernate non distingue tra il riferimento ad una collezione nulla e 
+            una collezione vuota.
+        </p><p>
+            Le collezioni sono automaticamente rese persistenti quando sono referenziate da 
+            un oggetto persistente, e cancellate automaticamente quando il riferimento
+            viene eliminato. Se una collezione viene passata da un oggetto persistente ad un altro, 
+            i suoi elementi vengono spostati da una tabella ad un'altra. Non dovreste preoccuparvi
+            molto di questo: semplicemente usate le collezioni di Hibernate nello stesso modo in cui
+            usate le normali collezioni di Java, ma assicuratevi di comprendere la semantica delle
+            associazioni bidirezionali (discussa pi&ugrave; avanti), prima di farlo.
+        </p><p>
+            Le istanze di collezione sono distinte nel database da una chiave esterna verso l'entit&agrave; 
+            che le contiene. Questa chiave esterna viene chiamata la 
+            <span class="emphasis"><em>chiave di collezione</em></span>. La chiave di collezione &egrave; mappata con l'elemento
+            <tt class="literal">&lt;key&gt;</tt>.
+        </p><p>
+            Le collezioni possono contenere quasi ogni altro tipo di Hibernate, compresi tutti 
+            i tipi di base, i tipi personalizzati (custom), i tipi di entit&agrave; e i componenti. 
+            Questa &egrave; una definizione importante: un oggetto in una collezione pu&ograve; essere gestito
+            sia con una semantica di "passaggio per valore" (del resto dipende completamente 
+            dal proprietario della collezione) o pu&ograve; essere un riferimento ad un'altra entit&agrave; di
+            Hibernate, con il suo proprio ciclo di vita. Le collezioni non possono contenere
+            altre collezioni. Il tipo contenuto viene chiamato il <span class="emphasis"><em>tipo di elemento della collezione</em></span>. 
+            Gli elementi della collezione vengono mappati da<tt class="literal">&lt;element&gt;</tt>, 
+            <tt class="literal">&lt;composite-element&gt;</tt>,
+            <tt class="literal">&lt;one-to-many&gt;</tt>, <tt class="literal">&lt;many-to-many&gt;</tt> or
+            <tt class="literal">&lt;many-to-any&gt;</tt>. I primi due mappano elementi con semantica di valore, 
+            mentre gli altri tre vengono usati per mappare associazioni tra entit&agrave;.
+        </p><p>
+            Tutti i tipi di collezione eccetto <tt class="literal">Set</tt> e bag hanno una colonna 
+            <span class="emphasis"><em>indice</em></span> , ovvero una colonna che mappa l'indice di un array o di una 
+            <tt class="literal">List</tt> o la chiave di una <tt class="literal">Map</tt>. L'indice di una 
+            <tt class="literal">Map</tt> pu&ograve; essere di qualsiasi tipo di base, un tipo di entit&agrave; o anche un 
+            tipo composito (ma non pu&ograve; essere una collezione). L'indice di un array o di una lista &egrave; 
+            sempre di tipo <tt class="literal">integer</tt>. Gli indici vengono mappati usando <tt class="literal">&lt;index&gt;</tt>, 
+            <tt class="literal">&lt;index-many-to-many&gt;</tt>,
+            <tt class="literal">&lt;composite-index&gt;</tt> o <tt class="literal">&lt;index-many-to-any&gt;</tt>.
+        </p><p>
+            C'&egrave; un insieme abbastanza vario di mappaggi che possono venire generati per le collezioni, 
+            e coprono molti modelli relazionali comuni. Suggeriamo che sperimentiate con lo strumento
+            di generazione dello schema per avere un'idea di come i vari tipi di dichiarazione si 
+            traducono in tabelle di database.
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="collections-mapping"></a>6.2.&nbsp;Come mappare una collezione</h2></div></div><div></div></div><p>
+            Le collezioni vengono dichiarate tramite gli elementi
+            <tt class="literal">&lt;set&gt;</tt>,
+            <tt class="literal">&lt;list&gt;</tt>,
+            <tt class="literal">&lt;map&gt;</tt>,
+            <tt class="literal">&lt;bag&gt;</tt>,
+            <tt class="literal">&lt;array&gt;</tt> e
+            <tt class="literal">&lt;primitive-array&gt;</tt>.
+            <tt class="literal">&lt;map&gt;</tt> &egrave; un buon esempio:
+        </p><div class="programlistingco"><pre class="programlisting">&lt;map
+    name="propertyName"                                         <span class="co">(1)</span>
+    table="table_name"                                          <span class="co">(2)</span>
+    schema="schema_name"                                        <span class="co">(3)</span>
+    lazy="true|false"                                           <span class="co">(4)</span>
+    inverse="true|false"                                        <span class="co">(5)</span>
+    cascade="all|none|save-update|delete|all-delete-orphan"     <span class="co">(6)</span>
+    sort="unsorted|natural|comparatorClass"                     <span class="co">(7)</span>
+    order-by="column_name asc|desc"                             <span class="co">(8)</span>
+    where="arbitrary sql where condition"                       <span class="co">(9)</span>
+    outer-join="true|false|auto"                                <span class="co">(10)</span>
+    batch-size="N"                                              <span class="co">(11)</span>
+    access="field|property|ClassName"                           <span class="co">(12)</span>
+&gt;
+
+    &lt;key .... /&gt;
+    &lt;index .... /&gt;
+    &lt;element .... /&gt;
+&lt;/map&gt;</pre><div class="calloutlist"><table border="0" summary="Callout list"><tr><td width="5%" valign="top" align="left">(1)</td><td valign="top" align="left"><p>
+                        <tt class="literal">name</tt> il nome della propriet&agrave; corrispondente alla collezione
+                    </p></td></tr><tr><td width="5%" valign="top" align="left">(2)</td><td valign="top" align="left"><p>
+                        <tt class="literal">table</tt> (opzionale - se assente &egrave; uguale al nome della propriet&agrave;) il
+                        nome della tabella che corrisponde alla collezione (non usato per le associazioni uno-a-molti)
+                    </p></td></tr><tr><td width="5%" valign="top" align="left">(3)</td><td valign="top" align="left"><p>
+                        <tt class="literal">schema</tt> (opzionale) il nome di uno schema di tabella che sovrascriva
+                        quello dichiarato sull'elemento radice
+                    </p></td></tr><tr><td width="5%" valign="top" align="left">(4)</td><td valign="top" align="left"><p>
+                        <tt class="literal">lazy</tt> (opzionale - se assente &egrave; <tt class="literal">false</tt>)
+                        consente l'inizializzazione differita (non usato per gli array)
+                    </p></td></tr><tr><td width="5%" valign="top" align="left">(5)</td><td valign="top" align="left"><p>
+                        <tt class="literal">inverse</tt> (opzionale - se assente vale <tt class="literal">false</tt>)
+                        indica che questa collezione &egrave; il lato "opposto" di una associazione bidirezionale
+                    </p></td></tr><tr><td width="5%" valign="top" align="left">(6)</td><td valign="top" align="left"><p>
+                        <tt class="literal">cascade</tt> (opzionale - se assente vale <tt class="literal">none</tt>)
+                        consente che le operazioni si propaghino sugli elementi figli della collezione
+                    </p></td></tr><tr><td width="5%" valign="top" align="left">(7)</td><td valign="top" align="left"><p>
+                        <tt class="literal">sort</tt> (opzionale) specifica una collezione ordinata con un metodo 
+                        di ordinamento <tt class="literal">naturale</tt>, o una classe di comparazione specifica
+                    </p></td></tr><tr><td width="5%" valign="top" align="left">(8)</td><td valign="top" align="left"><p>
+                        <tt class="literal">order-by</tt> (opzionale, solo JDK1.4) specifica una colonna della tabella 
+                        (o pi&ugrave; colonne) che indica l'ordine di iterazione della <tt class="literal">Map</tt>, del <tt class="literal">Set</tt>
+                        o del bag, con un indicatore <tt class="literal">asc</tt> o <tt class="literal">desc</tt> (ascendente o discendente) 
+                        opzionale.
+                    </p></td></tr><tr><td width="5%" valign="top" align="left">(9)</td><td valign="top" align="left"><p>
+                        <tt class="literal">where</tt> (opzionale) specifica una condizione <tt class="literal">WHERE</tt> opzionale
+                        da usare quando si carica o rimuove la collezione (utile se la collezione deve contenere solo un 
+                        sottoinsieme dei dati presenti)
+                    </p></td></tr><tr><td width="5%" valign="top" align="left">(10)</td><td valign="top" align="left"><p>
+                        <tt class="literal">outer-join</tt> (opzionale) specifica che la collezione dovrebbe essere caricata 
+                        tramite un outer join, quando possibile. Solo una collezione pu&ograve; venire caricata in questo modo
+                        in una <tt class="literal">SELECT</tt> SQL.
+                    </p></td></tr><tr><td width="5%" valign="top" align="left">(11)</td><td valign="top" align="left"><p>
+                        <tt class="literal">batch-size</tt> (opzionale, per default vale <tt class="literal">1</tt>) specifica
+                        una dimensione del "batch" (blocco di caricamento) per il caricamento differito di istanze 
+                        di questa collezione.
+                    </p></td></tr><tr><td width="5%" valign="top" align="left">(12)</td><td valign="top" align="left"><p>
+                        <tt class="literal">access</tt> (opzionale - se assente vale <tt class="literal">property</tt>): La 
+                        strategia che Hibernate dovrebbe utilizzare per accedere al valore di questa propriet&agrave;.
+                    </p></td></tr></table></div></div><p>
+            Il mappaggio di una <tt class="literal">List</tt> o di un array richiede una colonna separata della tabella
+            per mantenere l'indice (l'elemento <tt class="literal">i</tt> in <tt class="literal">foo[i]</tt>). Se il vostro 
+            modello relazionale non ha una colonna indice, ad esempio perch&eacute; state lavorando con dati preesistenti,
+            usate un <tt class="literal">Set</tt> non ordinato. Questo sembra deludere le persone che assumono che una 
+            <tt class="literal">List</tt> sia un modo pi&ugrave; conveniente di accedere ad una collezione non ordinata, ma 
+            le collezioni di Hibernate obbediscono strettamente alla semantica associata alle interfacce 
+            <tt class="literal">Set</tt>, <tt class="literal">List</tt> e <tt class="literal">Map</tt>, e semplicemente gli elementi di una 
+            <tt class="literal">List</tt> non si ordinano spontaneamente!
+        </p><p>
+            Da un altro punto di vista, le persone che immaginavano di usare <tt class="literal">List</tt> per emilare 
+            la semantica di un <span class="emphasis"><em>bag</em></span> hanno un motivo legittimo di lamentela, qui.
+            Un bag &egrave; una collezione non ordinata e non indicizzata di elementi, che pu&ograve; quindi contenere lo stesso
+            elemento pi&ugrave; volte. L'infrastruttura delle collezioni di java non specifica un'interfaccia 
+            <tt class="literal">Bag</tt>, per cui la si deve emulare con una <tt class="literal">List</tt>. Hibernate consente
+            di mappare propriet&agrave; di tipo <tt class="literal">List</tt> o <tt class="literal">Collection</tt> con l'elemento 
+            <tt class="literal">&lt;bag&gt;</tt>. Notate che la semantica del sacco (bag) non sono realmente parte del 
+            contratto di <tt class="literal">Collection</tt> ed in realt&agrave; confliggono con il contratto della 
+            <tt class="literal">List</tt> contract (anche se, come discusso pi&ugrave; avanti nel capitolo, potete ordinare 
+            a piacimento il bag).
+        </p><p>
+            Nota: bag molto grandi mappati con <tt class="literal">inverse="false"</tt> in Hibernate sono inefficienti, 
+            e andrebbero evitati; Hiberante non pu&ograve; creare, cancellare o aggiornare righe individualmente perch&eacute;
+            non c'&egrave; una chiave che possa identificare una riga singola.
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="collections-ofvalues"></a>6.3.&nbsp;Collezioni di valori e associazioni molti-a-molti</h2></div></div><div></div></div><p>
+            Una tabella di collezione &egrave; richiesta per ogni collezione di valori o di riferimenti ad 
+            altre entit&agrave; che sia mappada come un'associazione molti-a-molti (la semantica naturale
+            per una collezione java). La tabella richiede colonne di chiave (esterna), colonne
+            di elemento e possibilmente colonne indice.
+        </p><p>
+            La chiave esterna dalla tabella di collezione verso la tabella della classe
+            proprietaria &egrave; dichiarata usando un elemento <tt class="literal">&lt;key&gt;</tt>.
+        </p><div class="programlistingco"><pre class="programlisting">&lt;key column="column_name"/&gt;</pre><div class="calloutlist"><table border="0" summary="Callout list"><tr><td width="5%" valign="top" align="left">(1)</td><td valign="top" align="left"><p>
+                        <tt class="literal">column</tt> (obbligatorio): Il nome della colonna di chiave esterna.
+                    </p></td></tr></table></div></div><p>
+            Per le collezioni indicizzate come le mappe e le liste, &egrave; necessario un elemento <tt class="literal">&lt;index&gt;</tt>. 
+            Per le liste, questa colonna deve contenere interi in sequenza, numerati a partire da zero. Assicuratevi che il vostro
+            indice parta davvero da zero, se dovete avere a che fare con dati preesistenti. Per le mappe, la colonna pu&ograve; 
+            contenere valori di un tipo qualsiasi gestito da Hibernate.
+        </p><div class="programlistingco"><pre class="programlisting">&lt;index
+        column="column_name"                <span class="co">(1)</span>
+        type="typename"                     <span class="co">(2)</span>
+/&gt;</pre><div class="calloutlist"><table border="0" summary="Callout list"><tr><td width="5%" valign="top" align="left">(1)</td><td valign="top" align="left"><p>
+                        <tt class="literal">column</tt> (obbligatorio): Il nome della colonna che contiene i valori dell'indice di 
+                        collezione.
+                    </p></td></tr><tr><td width="5%" valign="top" align="left">(2)</td><td valign="top" align="left"><p>
+                        <tt class="literal">type</tt> (opzionale, se assente vale <tt class="literal">integer</tt>):
+                        Il tipo dell'indice di collezione.
+                    </p></td></tr></table></div></div><p>
+            In alternativa, una mappa pu&ograve; essere indicizzata da oggetti di tipo "entit&agrave;". Usiamo in 
+            questo caso l'elemento <tt class="literal">&lt;index-many-to-many&gt;</tt>.
+        </p><div class="programlistingco"><pre class="programlisting">&lt;index-many-to-many
+        column="column_name"                <span class="co">(1)</span>
+        class="ClassName"                   <span class="co">(2)</span>
+/&gt;</pre><div class="calloutlist"><table border="0" summary="Callout list"><tr><td width="5%" valign="top" align="left">(1)</td><td valign="top" align="left"><p>
+                        <tt class="literal">column</tt> (obbligatorio): Il nome della colonna che contiene la
+                        chiave esterna verso i valori di indice della collezione.
+                    </p></td></tr><tr><td width="5%" valign="top" align="left">(2)</td><td valign="top" align="left"><p>
+                        <tt class="literal">class</tt> (obbligatorio): La classe dell'entit&agrave; che &egrave; usata come 
+                        indice della collezione.
+                    </p></td></tr></table></div></div><p>
+            Per una collezione di valori usiamo l'etichetta <tt class="literal">&lt;element&gt;</tt>.
+        </p><div class="programlistingco"><pre class="programlisting">&lt;element
+        column="column_name"                <span class="co">(1)</span>
+        type="typename"                     <span class="co">(2)</span>
+/&gt;</pre><div class="calloutlist"><table border="0" summary="Callout list"><tr><td width="5%" valign="top" align="left">(1)</td><td valign="top" align="left"><p>
+                        <tt class="literal">column</tt> (obbligatorio): Il nome della colonna che contiene i valori degli 
+                        elementi della collezione.
+                    </p></td></tr><tr><td width="5%" valign="top" align="left">(2)</td><td valign="top" align="left"><p>
+                        <tt class="literal">type</tt> (obbligatorio): Il tipo degli elementi della collezione.
+                    </p></td></tr></table></div></div><p>
+            Una collezione di entit&agrave; con la propria tabella corrisponde alla nozione relazionale di
+            <span class="emphasis"><em>associazione molti-a-molti</em></span>. Una associazione di questo tipo &egrave; il 
+            mappaggio pi&ugrave; naturale per una collezione java, ma solitamente non rappresenta il miglior
+            modello relazionale.
+        </p><div class="programlistingco"><pre class="programlisting">&lt;many-to-many
+        column="column_name"                               <span class="co">(1)</span>
+        class="ClassName"                                  <span class="co">(2)</span>
+        outer-join="true|false|auto"                       <span class="co">(3)</span>
+    /&gt;</pre><div class="calloutlist"><table border="0" summary="Callout list"><tr><td width="5%" valign="top" align="left">(1)</td><td valign="top" align="left"><p>
+                        <tt class="literal">column</tt> (obbligatorio): Il nome della colonna con la chiave esterna verso l'elemento.
+                    </p></td></tr><tr><td width="5%" valign="top" align="left">(2)</td><td valign="top" align="left"><p>
+                        <tt class="literal">class</tt> (obbligatorio): Il nome della classe associata.
+                    </p></td></tr><tr><td width="5%" valign="top" align="left">(3)</td><td valign="top" align="left"><p>
+                        <tt class="literal">outer-join</tt> (opzionale - se assente vale <tt class="literal">auto</tt>):
+                        quando il parametro <tt class="literal">hibernate.use_outer_join</tt> &egrave; impostato, consente 
+                        il caricamento via join esterno per questa associazione .
+                    </p></td></tr></table></div></div><p>
+            Alcuni esempio. Prima di tutto, un insieme di stringhe:
+        </p><pre class="programlisting">&lt;set name="names" table="NAMES"&gt;
+    &lt;key column="GROUPID"/&gt;
+    &lt;element column="NAME" type="string"/&gt;
+&lt;/set&gt;</pre><p>
+            Un "sacco" (bag) contenente interi (con un ordine di iterazione determinato dall'attributo 
+            <tt class="literal">order-by</tt>):
+        </p><pre class="programlisting">&lt;bag name="sizes" table="SIZES" order-by="SIZE ASC"&gt;
+    &lt;key column="OWNER"/&gt;
+    &lt;element column="SIZE" type="integer"/&gt;
+&lt;/bag&gt;</pre><p>
+            Un array di entit&agrave; - in questo caso un'associazione molti-a-molti (notate che 
+            le entit&agrave; vengono gestite nel ciclo di vita dell'entit&agrave; proprietaria, grazie 
+            al settaggio <tt class="literal">cascade="all"</tt>):
+        </p><pre class="programlisting">&lt;array name="foos" table="BAR_FOOS" cascade="all"&gt;
+    &lt;key column="BAR_ID"/&gt;
+    &lt;index column="I"/&gt;
+    &lt;many-to-many column="FOO_ID" class="org.hibernate.Foo"/&gt;
+&lt;/array&gt;</pre><p>
+            Una mappa da indici stringa a date:
+        </p><pre class="programlisting">&lt;map name="holidays" table="holidays" schema="dbo" order-by="hol_name asc"&gt;
+    &lt;key column="id"/&gt;
+    &lt;index column="hol_name" type="string"/&gt;
+    &lt;element column="hol_date" type="date"/&gt;
+&lt;/map&gt;</pre><p>
+            Una lista di componenti (discussi nel prossimo capitolo):
+        </p><pre class="programlisting">&lt;list name="carComponents" table="car_components"&gt;
+    &lt;key column="car_id"/&gt;
+    &lt;index column="posn"/&gt;
+    &lt;composite-element class="org.hibernate.car.CarComponent"&gt;
+            &lt;property name="price" type="float"/&gt;
+            &lt;property name="type" type="org.hibernate.car.ComponentType"/&gt;
+            &lt;property name="serialNumber" column="serial_no" type="string"/&gt;
+    &lt;/composite-element&gt;
+&lt;/list&gt;</pre></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="collections-onetomany"></a>6.4.&nbsp;Associazioni uno-a-molti</h2></div></div><div></div></div><p>
+            Una <span class="emphasis"><em>associazione uno a molti</em></span> collega <span class="emphasis"><em>direttamente</em></span> le tabelle 
+            di due classi, senza che intervenga una apposita tabella di collezione.
+            (ci&ograve; corrisponde al modello relazionale <span class="emphasis"><em>uno-a-molti</em></span>.) In questo modello, si perde
+            un po' della semantica delle collezioni di Java:
+        </p><div class="itemizedlist"><ul type="disc" compact><li><p>
+                    Non &egrave; possibile avere valori null contenuti in una mappa, un insieme o una lista.
+                </p></li><li><p>
+                    Una istanza dell'entit&agrave; contenuta non pu&ograve; appartenere a pi&ugrave; di una istanza della collezione.
+                </p></li><li><p>
+                    Una istanza dell'entit&agrave; contenuta non pu&ograve; apparire in corrispondenza di pi&ugrave; di un valore
+                    dell'indice di collezione.
+                </p></li></ul></div><p>
+            Un'associazione da <tt class="literal">Pippo</tt> a <tt class="literal">Pluto</tt> richiede l'aggiunta
+            di una colonna chiave, e possibilmente anche di una colonna indice alla tabella della classe
+            di entit&agrave; contenuta, <tt class="literal">Pluto</tt>. Queste colonne vengono mappate usando gli elementi
+            <tt class="literal">&lt;key&gt;</tt> e <tt class="literal">&lt;index&gt;</tt> gi&agrave; descritti in precedenza.
+        </p><p>
+            L'etichetta <tt class="literal">&lt;one-to-many&gt;</tt> indica un'associazione uno a molti.
+        </p><div class="programlistingco"><pre class="programlisting">&lt;one-to-many class="ClassName"/&gt;</pre><div class="calloutlist"><table border="0" summary="Callout list"><tr><td width="5%" valign="top" align="left">(1)</td><td valign="top" align="left"><p>
+                        <tt class="literal">class</tt> (obbligatorio): Il nome della classe associata.
+                    </p></td></tr></table></div></div><p>
+            Esempio:
+        </p><pre class="programlisting">&lt;set name="bars"&gt;
+    &lt;key column="foo_id"/&gt;
+    &lt;one-to-many class="org.hibernate.Bar"/&gt;
+&lt;/set&gt;</pre><p>
+            Notate che l'elemento <tt class="literal">&lt;one-to-many&gt;</tt> non ha bisogno di dichiarare 
+            alcuna colonna. Non &egrave; neppure necessario specificare il nome della tabella.
+        </p><p>
+            <span class="emphasis"><em>Nota Molto Importante:</em></span> se la colonna <tt class="literal">&lt;key&gt;</tt>
+            di una associazione <tt class="literal">&lt;one-to-many&gt;</tt> viene dichiarata
+            <tt class="literal">NOT NULL</tt>, Hibernate pu&ograve; causare violazioni di vincoli quando 
+            crea o aggiorna le associazioni. Per prevenire questo problema, 
+            <span class="emphasis"><em>dovete usare una associazione bidirezionale</em></span> con l'estremit&agrave; "many" 
+            (l'insieme o il sacco) impostati a <tt class="literal">inverse="true"</tt>.
+            Per ulteriori informazioni si legga la discussioni sulle associazioni bidirezionali pi&ugrave; 
+            avanti in questo capitolo.
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="collections-lazy"></a>6.5.&nbsp;Inizializzazione differita (lazy)</h2></div></div><div></div></div><p>
+            Le collezioni (a differenza degli array) possono essere inizializzate in maniera
+            differita, ovvero possono caricare il proprio stato dal database solo quando 
+            l'applicazione ha bisogno di accedervi. L'inizializzazione avviene trasparentemente
+            per l'utente, in modo tale che l'applicazione non ha normalmente bisogno di 
+            preoccuparssene (in effetti, l'inizializzazione trasparente e differita &egrave; 
+            la ragione principale per cui Hibernate ha bisogno di implementazioni proprie 
+            delle collezioni). Nonostante ci&ograve;, se l'applicazione tenta di fare qualcosa come
+            nel codice seguente:
+        </p><pre class="programlisting">s = sessions.openSession();
+User u = (User) s.find("from User u where u.name=?", userName, Hibernate.STRING).get(0);
+Map permissions = u.getPermissions();
+s.connection().commit();
+s.close();
+
+Integer accessLevel = (Integer) permissions.get("accounts");  // Error!</pre><p>
+            Pu&ograve; ritrovarsi di fronte ad una brutta sorpresa. Poich&eacute; la collezione dei 
+            permessi (permissions) non era stata inizializzata quando la 
+            <tt class="literal">Session</tt> &egrave; stata committata, la collezione non sar&agrave; mai
+            capace di caricare il suo stato. La correzione consiste nel muovere la riga
+            che legge dalla collezione subito prima del commit. (In ogni caso ci sono
+            altre maniere pi&ugrave; avanzate di risolvere il problema).
+        </p><p>
+            In alternativa, potete usare una collezione ad inizializzazione non differita.
+            Poich&eacute; l'inizializzazione differita pu&ograve; portare a bachi come nel codice precedente,
+            la "non-lazyness" (il "non differimento" o, letteralmente, la "non pigrizia") &egrave;
+            il comportamento predefinito. Comunque, &egrave; sottinteso che l'inizializzazione differita
+            venga usata per quasi tutte le collezioni, in particolar modo per le collezioni di 
+            entit&agrave; (per questioni di efficienza).
+        </p><p>
+            Le eccezioni che accadono mentre si inizializza in maniera differita le collezioni
+            sono incapsulate in una <tt class="literal">LazyInitializationException</tt>.
+        </p><p>
+            Potete dichiarare una collezione differita usando l'attributo opzionale
+            <tt class="literal">lazy</tt>:
+        </p><pre class="programlisting">&lt;set name="names" table="NAMES" lazy="true"&gt;
+    &lt;key column="group_id"/&gt;
+    &lt;element column="NAME" type="string"/&gt;
+&lt;/set&gt;</pre><p>
+            In alcune architetture applicative, in particolare quando il codice che accede ai
+            dati con Hibernate e il codice che lo usa sono in differenti livelli applicativi,
+            pu&ograve; essere un problema assicurarsi che la <tt class="literal">Session</tt> sia aperta
+            quando una collezione viene inizializzata. Ci sono due maniere principali, per 
+            trattare questa questione:
+        </p><div class="itemizedlist"><ul type="disc"><li><p>
+                    In una applicazione basata sul web, si pu&ograve; usare un "servlet filter" per
+                    chiudere la <tt class="literal">Session</tt> solo alla fine della richiesta di
+                    un utente, quando la costruzione della vista &egrave; completa. Naturalmente, 
+                    questo impone dei vincoli molto importanti sulla correttezza della gestione
+                    delle eccezioni nella vostra infrastruttura applicativa. &Egrave; vitalmente 
+                    importante che la <tt class="literal">Session</tt> venga chiusa e la transazione
+                    conclusa prima di restituire il controllo all'utente, anche quando una
+                    eccezione avviene durante la resa della vista. Il servlet filter deve essere
+                    in grado di accedere la <tt class="literal">Session</tt> perch&eacute; questo sia possibile.
+                    Raccomandiamo l'uso di una variabile <tt class="literal">ThreadLocal</tt> per 
+                    mangenere la <tt class="literal">Session</tt> corrente (vedere il capitolo 1,
+                    <a href="quickstart.html#quickstart-playingwithcats" title="1.4.&nbsp;Giochiamo con i gatti">Sezione&nbsp;1.4, &#8220;Giochiamo con i gatti&#8221;</a>, per un'implementazione di 
+                    esempio).
+                </p></li><li><p>
+                    In una applicazione con uno strato di business separato, la logica 
+                    applicativa deve "preparare" tutte le collezioni che saranno necessarie
+                    per lo strato web prima di ritornare. Questo significa che lo strato
+                    di business dovrebbe caricare tutti i dati che siano richiesti per un 
+                    particolare caso d'uso, e restituirli allo strato web di presentazione 
+                    una volta inizializzati . Solitamente, l'applicazione chiama 
+                    <tt class="literal">Hibernate.initialize()</tt> per ogni collezione che sar&agrave; 
+                    necessaria nello strato web (la chiamata deve avvenire prima che la 
+                    sessione venga chiusa), o carica la collezione direttamente usando una
+                    query di Hibernate che comprende una clausola <tt class="literal">FETCH</tt>.
+                </p></li><li><p>
+                    Potete anche attaccare un oggetto caricato precedentemente ad una nuova
+                    <tt class="literal">Session</tt> con <tt class="literal">update()</tt> o 
+                    <tt class="literal">lock()</tt> prima di accedere a collezioni non inizializzate 
+                    (o altri tipi di mediatori). Hibernate non pu&ograve; farlo automaticamente, 
+                    perch&eacute; dovrebbe introdurre semantica transazionale ad-hoc!
+                </p></li></ul></div><p>
+            Potete usare il metodo <tt class="literal">filter()</tt> dell'API della classe Session di 
+            Hibernate per ottenere la dimensione di una collezione senza doverla inizializzare:
+        </p><pre class="programlisting">( (Integer) s.filter( collection, "select count(*)" ).get(0) ).intValue()</pre><p>
+            <tt class="literal">filter()</tt> o <tt class="literal">createFilter()</tt> vengono anche usati
+            per caricare efficientemente sottoinsiemi di una collezione senza bisogno di inizializzare
+            l'intera collezione.
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="collections-sorted"></a>6.6.&nbsp;Collezioni ordinate</h2></div></div><div></div></div><p>
+            Hibernate supporta collezioni che implementano <tt class="literal">java.util.SortedMap</tt> 
+            e <tt class="literal">java.util.SortedSet</tt>. Dovete specificare esplicitamente un 
+            comparatore nel file di mappaggio:
+        </p><pre class="programlisting">&lt;set name="aliases" table="person_aliases" sort="natural"&gt;
+    &lt;key column="person"/&gt;
+    &lt;element column="name" type="string"/&gt;
+&lt;/set&gt;
+
+&lt;map name="holidays" sort="my.custom.HolidayComparator" lazy="true"&gt;
+    &lt;key column="year_id"/&gt;
+    &lt;index column="hol_name" type="string"/&gt;
+    &lt;element column="hol_date type="date"/&gt;
+&lt;/map&gt;</pre><p>
+            I valori permessi per l'attributo <tt class="literal">sort</tt> sono
+            <tt class="literal">unsorted</tt>, <tt class="literal">natural</tt> e il nome di una classe che
+            implementi <tt class="literal">java.util.Comparator</tt>.
+        </p><p>
+            Le collezioni ordinate si comportano in effetti come 
+            <tt class="literal">java.util.TreeSet</tt> o <tt class="literal">java.util.TreeMap</tt>.
+        </p><p>
+            Se volete che sia il database stesso ad ordinare gli elementi della collezione,
+            usate l'attributo <tt class="literal">order-by</tt> dei mappaggi dei <tt class="literal">set</tt>, 
+            <tt class="literal">bag</tt> o delle <tt class="literal">map</tt>. Questa soluzione funziona solo
+            sotto JDK 1.4 o superiori (&egrave; implementata usando <tt class="literal">LinkedHashSet</tt> o
+            <tt class="literal">LinkedHashMap</tt>). Questo fa s&igrave; che l'ordinamento avvenga durante 
+            l'esecuzione della query SQL, non in memoria.
+        </p><pre class="programlisting">&lt;set name="aliases" table="person_aliases" order-by="name asc"&gt;
+    &lt;key column="person"/&gt;
+    &lt;element column="name" type="string"/&gt;
+&lt;/set&gt;
+
+&lt;map name="holidays" order-by="hol_date, hol_name" lazy="true"&gt;
+    &lt;key column="year_id"/&gt;
+    &lt;index column="hol_name" type="string"/&gt;
+    &lt;element column="hol_date type="date"/&gt;
+&lt;/map&gt;</pre><p>
+            Notate che il valore dell'attributo <tt class="literal">order-by</tt> si riferisce all'SQL, 
+            non all'HQL!
+        </p><p>
+            Le associazioni possono anche venire ordinate usando criteri arbitrari in fase
+            di esecuzione usando un <tt class="literal">filter()</tt>.
+        </p><pre class="programlisting">sortedUsers = s.filter( group.getUsers(), "order by this.name" );</pre></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="collections-idbag"></a>6.7.&nbsp;<tt class="literal">L'uso degli &lt;idbag&gt;</tt></h2></div></div><div></div></div><p>
+            Se avete abbracciato il nostro punto di vista, secondo cui le chiavi composte
+            sono una cattiva cosa, e le entit&agrave; dovrebbero avere identificatori sintetici
+            (chiavi surrogate), potreste trovare un po' strano che le associazioni 
+            molti-a-molti e le collezioni di valori che abbiamo mostrato fin qui, si mappano
+            tutte su tabelle con chiavi composte! Ora, questo punto &egrave; abbastanza discutibile;
+            una tabella di pura associazione non sembra trarre molto beneficio da una chiave
+            surrogata (bench&eacute; una collezione di valori composti <span class="emphasis"><em>potrebbe</em></span>).
+            Ciononostante, Hibern ate fornisce una funzionalit&agrave; (lievemente sperimentale),
+            che consente di mappare associazioni molti-a-molti e collezioni di valori su una
+            tabella con una chiave surrogata.
+        </p><p>
+            L'elemento <tt class="literal">&lt;idbag&gt;</tt> vi permette di mappare una 
+            <tt class="literal">List</tt> (o una <tt class="literal">Collection</tt>) con la semantica del 
+            sacco ("bag").
+        </p><pre class="programlisting">&lt;idbag name="lovers" table="LOVERS" lazy="true"&gt;
+    &lt;collection-id column="ID" type="long"&gt;
+        &lt;generator class="hilo"/&gt;
+    &lt;/collection-id&gt;
+    &lt;key column="PERSON1"/&gt;
+    &lt;many-to-many column="PERSON2" class="eg.Person" outer-join="true"/&gt;
+&lt;/idbag&gt;</pre><p>
+            Come potete vedere, un <tt class="literal">&lt;idbag&gt;</tt> ha un generatore di id
+            sintetici essattamente come una classe di entit&agrave;! Una chiave surrogata diversa 
+            viene assegnata ad ogni riga della collezione. Hibernate non fornisce alcun meccanismo
+            per scoprire la chiave surrogata di una particolare riga, per&ograve;.
+        </p><p>
+            Notate che le performance in aggiornamento di un <tt class="literal">&lt;idbag&gt;</tt> sono
+            <span class="emphasis"><em>molto</em></span> migliori di un <tt class="literal">&lt;bag&gt;</tt> normale!
+            Hibernate pu&ograve; individuare chiavi individuali in maniera efficiente, e aggiornare o cancellarle
+            individualmente esattamente come in una lista, una mappa o un insieme.
+        </p><p>
+            Nell'implementazione corrente, la strategia di generazione degli identificatori 
+            indicata con <tt class="literal">identity</tt> non viene supportata per gli identificatori
+            di collezione <tt class="literal">&lt;idbag&gt;</tt>.
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="collections-bidirectional"></a>6.8.&nbsp;Associazioni bidirezionali</h2></div></div><div></div></div><p>
+            Una <span class="emphasis"><em>associazione bidirezionale</em></span> consente la navigazione
+            da entrambe le estremit&agrave; dell'associazione. Vengono supportati due stili 
+            differenti di associazioni bidirezionali:
+
+            </p><div class="variablelist"><dl><dt><span class="term">one-to-many</span></dt><dd><p>
+                            un insieme o un sacco ad una estremit&agrave;, un valore singolo dall'altra
+                        </p></dd><dt><span class="term">many-to-many</span></dt><dd><p>
+                            entrambe le estremit&agrave; sono valorizzate con un set o un sacco
+                        </p></dd></dl></div><p>
+
+        </p><p>
+            Tenete presente che HIbernate non supporta associazioni bidirezionali uno-a-molti
+            con una collezione indicizzata (lista, mappa o array) come estremit&agrave; "molti": dovete
+            usare un mappaggio "set" o "bag".
+        </p><p>
+            Potete specificare una associazione bidirezionale molti-a-molti semplicemente
+            mappando due associazioni molti-a-molti sulla stessa tabella di database e 
+            dichiarando una estremit&agrave; come <span class="emphasis"><em>inverse</em></span> (decidere quale
+            &egrave; una scelta che sta a voi). Ecco un esempio di un'associazione bidirezionale
+            molti-a-molti da una classe a se <span class="emphasis"><em>stessa</em></span> (ogni categoria
+            pu&ograve; avere molti elementi, ed ogni elemento pu&ograve; essere in molte categorie):
+        </p><pre class="programlisting">&lt;class name="org.hibernate.auction.Category"&gt;
+    &lt;id name="id" column="ID"/&gt;
+    ...
+    &lt;bag name="items" table="CATEGORY_ITEM" lazy="true"&gt;
+        &lt;key column="CATEGORY_ID"/&gt;
+        &lt;many-to-many class="org.hibernate.auction.Item" column="ITEM_ID"/&gt;
+    &lt;/bag&gt;
+&lt;/class&gt;
+
+&lt;class name="org.hibernate.auction.Item"&gt;
+    &lt;id name="id" column="ID"/&gt;
+    ...
+
+    &lt;!-- inverse end --&gt;
+    &lt;bag name="categories" table="CATEGORY_ITEM" inverse="true" lazy="true"&gt;
+        &lt;key column="ITEM_ID"/&gt;
+        &lt;many-to-many class="org.hibernate.auction.Category" column="CATEGORY_ID"/&gt;
+    &lt;/bag&gt;
+&lt;/class&gt;</pre><p>
+            Dei cambiamenti fatto esclusivamente all'estremit&agrave; "inversa" dell'associazione 
+            <span class="emphasis"><em>non</em></span> vengono resi persistenti. Questo significa che Hibernate
+            ha due rappresentazioni in memoria per ogni associazione bidirezionale: un 
+            collegamento da A a B e un altro collegamento da B ad A. Questa cosa &egrave; pi&ugrave; facile da comprendere
+            se pensate al modello ad oggetti Java e come creiamo una relazione molti-a-molti in Java:
+        </p><pre class="programlisting">
+category.getItems().add(item);          // La categoria ora "sa" della relazione
+item.getCategories().add(category);     // L'elemento ora "sa" della relazione
+
+session.update(item);                     // Nessun effetto, niente verr&agrave; salvato!
+session.update(category);                 // La relazione verr&agrave; salvata</pre><p>
+            Il lato non-inverso viene usato per salvare la rappresentazione in-memoria sul database.
+            Otterremmo un INSERT/UPDATE non necessario e probabilmente anche una violazione di chiave
+            esterna se entrambe le estremit&agrave; scatenassero dei cambiamenti! La stessa cosa vale naturalmente
+            per le associazioni bidirezionali uno-a-molti.
+        </p><p>
+            Potete mappare una associazione bidirezionale uno-a-molti mappandola sulle stesse colonne 
+            come una associazione molti-a-uno e dichiarando l'estremit&agrave; "molti" come <tt class="literal">inverse="true"</tt>.
+        </p><pre class="programlisting">&lt;class name="eg.Parent"&gt;
+    &lt;id name="id" column="id"/&gt;
+    ....
+    &lt;set name="children" inverse="true" lazy="true"&gt;
+        &lt;key column="parent_id"/&gt;
+        &lt;one-to-many class="eg.Child"/&gt;
+    &lt;/set&gt;
+&lt;/class&gt;
+
+&lt;class name="eg.Child"&gt;
+    &lt;id name="id" column="id"/&gt;
+    ....
+    &lt;many-to-one name="parent" class="eg.Parent" column="parent_id"/&gt;
+&lt;/class&gt;</pre><p>
+            Mappare una estremit&agrave; di un'associazione con <tt class="literal">inverse="true"</tt> non condiziona
+            il funzionamento delle cascate, si tratta di concetti differenti!
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="collections-ternary"></a>6.9.&nbsp;Associazioni ternarie</h2></div></div><div></div></div><p>
+            Ci sono due approcci possibili per mappare una associazione ternaria. Uno &egrave; usare elementi
+            compositi (discusso pi&ugrave; avanti). Un altro &egrave; di usare una mappa con un'associazione come indice:
+        </p><pre class="programlisting">&lt;map name="contracts" lazy="true"&gt;
+    &lt;key column="employer_id"/&gt;
+    &lt;index-many-to-many column="employee_id" class="Employee"/&gt;
+    &lt;one-to-many class="Contract"/&gt;
+&lt;/map&gt;</pre><pre class="programlisting">&lt;map name="connections" lazy="true"&gt;
+    &lt;key column="node1_id"/&gt;
+    &lt;index-many-to-many column="node2_id" class="Node"/&gt;
+    &lt;many-to-many column="connection_id" class="Connection"/&gt;
+&lt;/map&gt;</pre></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="collections-heterogeneous"></a>6.10.&nbsp;Associazioni eterogenee</h2></div></div><div></div></div><p>
+	        Gli elementi <tt class="literal">&lt;many-to-any&gt;</tt> e <tt class="literal">&lt;index-many-to-any&gt;</tt>
+	        permettono di utilizzare vere e proprie associazioni eterogenee. Questi elementi di mappaggio
+	        funzionano nello stesso modo ini cui funziona l'elemento <tt class="literal">&lt;any&gt;</tt>, e come questo
+	        dovrebbero essere usate raramente, se proprio devono esserlo.
+	    </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="collections-example"></a>6.11.&nbsp;Esempi di collezioni</h2></div></div><div></div></div><p>
+            Le sezioni precedenti sono abbastanza complesse, quindi vediamo un esempio. 
+            La classe seguente:
+        </p><pre class="programlisting">package eg;
+import java.util.Set;
+
+public class Parent {
+    private long id;
+    private Set children;
+
+    public long getId() { return id; }
+    private void setId(long id) { this.id=id; }
+
+    private Set getChildren() { return children; }
+    private void setChildren(Set children) { this.children=children; }
+
+    ....
+    ....
+}</pre><p>
+            ha una collezione di istanze di <tt class="literal">eg.Child</tt>. Se ogni figlio
+            ha al pi&ugrave; un genitore, il mappaggio pi&ugrave; naturale &egrave; un'associazione uno-a-molti:
+        </p><pre class="programlisting">&lt;hibernate-mapping&gt;
+
+    &lt;class name="eg.Parent"&gt;
+        &lt;id name="id"&gt;
+            &lt;generator class="sequence"/&gt;
+        &lt;/id&gt;
+        &lt;set name="children" lazy="true"&gt;
+            &lt;key column="parent_id"/&gt;
+            &lt;one-to-many class="eg.Child"/&gt;
+        &lt;/set&gt;
+    &lt;/class&gt;
+
+    &lt;class name="eg.Child"&gt;
+        &lt;id name="id"&gt;
+            &lt;generator class="sequence"/&gt;
+        &lt;/id&gt;
+        &lt;property name="name"/&gt;
+    &lt;/class&gt;
+
+&lt;/hibernate-mapping&gt;</pre><p>
+            Questo si mappa sulle seguenti definizioni di tabella:
+        </p><pre class="programlisting">create table parent ( id bigint not null primary key )
+create table child ( id bigint not null primary key, name varchar(255), parent_id bigint )
+alter table child add constraint childfk0 (parent_id) references parent</pre><p>
+            Se il genitore &egrave; <span class="emphasis"><em>obbligatorio</em></span>, usate una associazione bidirezionale uno-a-molti:
+        </p><pre class="programlisting">&lt;hibernate-mapping&gt;
+
+    &lt;class name="eg.Parent"&gt;
+        &lt;id name="id"&gt;
+            &lt;generator class="sequence"/&gt;
+        &lt;/id&gt;
+        &lt;set name="children" inverse="true" lazy="true"&gt;
+            &lt;key column="parent_id"/&gt;
+            &lt;one-to-many class="eg.Child"/&gt;
+        &lt;/set&gt;
+    &lt;/class&gt;
+
+    &lt;class name="eg.Child"&gt;
+        &lt;id name="id"&gt;
+            &lt;generator class="sequence"/&gt;
+        &lt;/id&gt;
+        &lt;property name="name"/&gt;
+        &lt;many-to-one name="parent" class="eg.Parent" column="parent_id" not-null="true"/&gt;
+    &lt;/class&gt;
+
+&lt;/hibernate-mapping&gt;</pre><p>
+            Notate il vincolo <tt class="literal">NOT NULL</tt>:
+        </p><pre class="programlisting">create table parent ( id bigint not null primary key )
+create table child ( id bigint not null
+                     primary key,
+                     name varchar(255),
+                     parent_id bigint not null )
+alter table child add constraint childfk0 (parent_id) references parent</pre><p>
+            Dall'altro lato, se un figlio potesse avere genitori multipli, sarebbe appropriata
+            una associazione molti-a-molti:
+        </p><pre class="programlisting">&lt;hibernate-mapping&gt;
+
+    &lt;class name="eg.Parent"&gt;
+        &lt;id name="id"&gt;
+            &lt;generator class="sequence"/&gt;
+        &lt;/id&gt;
+        &lt;set name="children" lazy="true" table="childset"&gt;
+            &lt;key column="parent_id"/&gt;
+            &lt;many-to-many class="eg.Child" column="child_id"/&gt;
+        &lt;/set&gt;
+    &lt;/class&gt;
+
+    &lt;class name="eg.Child"&gt;
+        &lt;id name="id"&gt;
+            &lt;generator class="sequence"/&gt;
+        &lt;/id&gt;
+        &lt;property name="name"/&gt;
+    &lt;/class&gt;
+
+&lt;/hibernate-mapping&gt;</pre><p>
+            Definizioni delle tabelle:
+        </p><pre class="programlisting">create table parent ( id bigint not null primary key )
+create table child ( id bigint not null primary key, name varchar(255) )
+create table childset ( parent_id bigint not null,
+                        child_id bigint not null,
+                        primary key ( parent_id, child_id ) )
+alter table childset add constraint childsetfk0 (parent_id) references parent
+alter table childset add constraint childsetfk1 (child_id) references child</pre></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="mapping.html">Indietro</a>&nbsp;</td><td width="20%" align="center"><a accesskey="u" href="index.html">Risali</a></td><td width="40%" align="right">&nbsp;<a accesskey="n" href="components.html">Avanti</a></td></tr><tr><td width="40%" align="left" valign="top">Capitolo&nbsp;5.&nbsp;Mappaggio O/R di base&nbsp;</td><td width="20%" align="center"><a accesskey="h" href="index.html">Partenza</a></td><td width="40%" align="right" valign="top">&nbsp;Capitolo&nbsp;7.&nbsp;Mappaggio dei componenti</td></tr></table></div></body></html>

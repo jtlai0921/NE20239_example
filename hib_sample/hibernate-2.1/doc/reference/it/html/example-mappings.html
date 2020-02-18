@@ -1,0 +1,280 @@
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+   <title>Capitolo&nbsp;18.&nbsp;Alcuni mappaggi di esempio</title><link rel="stylesheet" href="../shared/css/html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.65.1"><link rel="home" href="index.html" title="HIBERNATE - Persistenza Relazionale Idiomatica per Java"><link rel="up" href="index.html" title="HIBERNATE - Persistenza Relazionale Idiomatica per Java"><link rel="previous" href="example-weblog.html" title="Capitolo&nbsp;17.&nbsp;Esempio: una applicazione che realizza un weblog"><link rel="next" href="best-practices.html" title="Capitolo&nbsp;19.&nbsp;Buone abitudini (best practices)"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Capitolo&nbsp;18.&nbsp;Alcuni mappaggi di esempio</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="example-weblog.html">Indietro</a>&nbsp;</td><th width="60%" align="center">&nbsp;</th><td width="20%" align="right">&nbsp;<a accesskey="n" href="best-practices.html">Avanti</a></td></tr></table><hr></div><div class="chapter" lang="it"><div class="titlepage"><div><div><h2 class="title"><a name="example-mappings"></a>Capitolo&nbsp;18.&nbsp;Alcuni mappaggi di esempio</h2></div></div><div></div></div><p>
+        Queste sezioni vi mostrano alcuni mappaggi di associazioni complesse.
+    </p><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="example-mappings-emp"></a>18.1.&nbsp;Employer/Employee (Datore di lavoro / impiegato)</h2></div></div><div></div></div><p>
+            Il modello seguente della relazione tra <tt class="literal">Employer</tt> e
+            <tt class="literal">Employee</tt> usa una vera classe di entit&agrave; (<tt class="literal">Employment</tt>) 
+            per rappresentare l'associazione. Facciamo in questo modo perch&eacute; potrebbe esserci pi&ugrave; di
+            un periodo di impiego che lega gli stessi due dipendenti. Per modellizzare i valori 
+            monetari e i nomi degli impiegati vengono usati dei componenti.
+        </p><div class="mediaobject" align="center"><img src="../shared/images/EmployerEmployee.gif" align="middle"></div><p>
+            Ecco un possibile documento di mappaggio:
+        </p><pre class="programlisting">&lt;hibernate-mapping&gt;
+        
+    &lt;class name="Employer" table="employers"&gt;
+        &lt;id name="id"&gt;
+            &lt;generator class="sequence"&gt;
+                &lt;param name="sequence"&gt;employer_id_seq&lt;/param&gt;
+            &lt;/generator&gt;
+        &lt;/id&gt;
+        &lt;property name="name"/&gt;
+    &lt;/class&gt;
+
+    &lt;class name="Employment" table="employment_periods"&gt;
+
+        &lt;id name="id"&gt;
+            &lt;generator class="sequence"&gt;
+                &lt;param name="sequence"&gt;employment_id_seq&lt;/param&gt;
+            &lt;/generator&gt;
+        &lt;/id&gt;
+        &lt;property name="startDate" column="start_date"/&gt;
+        &lt;property name="endDate" column="end_date"/&gt;
+
+        &lt;component name="hourlyRate" class="MonetoryAmount"&gt;
+            &lt;property name="amount"&gt;
+                &lt;column name="hourly_rate" sql-type="NUMERIC(12, 2)"/&gt;
+            &lt;/property&gt;
+            &lt;property name="currency" length="12"/&gt;
+        &lt;/component&gt;
+
+        &lt;many-to-one name="employer" column="employer_id" not-null="true"/&gt;
+        &lt;many-to-one name="employee" column="employee_id" not-null="true"/&gt;
+
+    &lt;/class&gt;
+
+    &lt;class name="Employee" table="employees"&gt;
+        &lt;id name="id"&gt;
+            &lt;generator class="sequence"&gt;
+                &lt;param name="sequence"&gt;employee_id_seq&lt;/param&gt;
+            &lt;/generator&gt;
+        &lt;/id&gt;
+        &lt;property name="taxfileNumber"/&gt;
+        &lt;component name="name" class="Name"&gt;
+            &lt;property name="firstName"/&gt;
+            &lt;property name="initial"/&gt;
+            &lt;property name="lastName"/&gt;
+        &lt;/component&gt;
+    &lt;/class&gt;
+
+&lt;/hibernate-mapping&gt;</pre><p>
+        Ed ecco lo schema delle tabelle generato automaticamente da <tt class="literal">SchemaExport</tt>.
+    </p><pre class="programlisting">create table employers (
+    id BIGINT not null, 
+    name VARCHAR(255), 
+    primary key (id)
+)
+
+create table employment_periods (
+    id BIGINT not null,
+    hourly_rate NUMERIC(12, 2),
+    currency VARCHAR(12), 
+    employee_id BIGINT not null, 
+    employer_id BIGINT not null, 
+    end_date TIMESTAMP, 
+    start_date TIMESTAMP, 
+    primary key (id)
+)
+
+create table employees (
+    id BIGINT not null, 
+    firstName VARCHAR(255), 
+    initial CHAR(1), 
+    lastName VARCHAR(255), 
+    taxfileNumber VARCHAR(255), 
+    primary key (id)
+)
+
+alter table employment_periods 
+    add constraint employment_periodsFK0 foreign key (employer_id) references employers
+alter table employment_periods 
+    add constraint employment_periodsFK1 foreign key (employee_id) references employees
+create sequence employee_id_seq
+create sequence employment_id_seq
+create sequence employer_id_seq</pre></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="example-mappings-authorwork"></a>18.2.&nbsp;Autore/Opera (Author/Work)</h2></div></div><div></div></div><p>
+            Considerate il seguente modello per le relazioni tra <tt class="literal">Work</tt>,
+            <tt class="literal">Author</tt> e <tt class="literal">Person</tt>. Rappresentiamo la relazione
+            tra <tt class="literal">Work</tt> e <tt class="literal">Author</tt> (tra un'opera e il suo autore) 
+            come una associazione molti-a-molti. Abbiamo invece scelto di rappresentare la relazione tra
+            <tt class="literal">Author</tt> e <tt class="literal">Person</tt> come una associazione uno-a-uno. Un'altra possibilit&agrave;
+            sarebbe che <tt class="literal">Author</tt> estendesse <tt class="literal">Person</tt>.
+        </p><div class="mediaobject" align="center"><img src="../shared/images/AuthorWork.gif" align="middle"></div><p>
+            Il seguente documento di mappaggio rappresenta correttamente queste relazioni:
+        </p><pre class="programlisting">&lt;hibernate-mapping&gt;
+
+    &lt;class name="Work" table="works" discriminator-value="W"&gt;
+
+        &lt;id name="id" column="id"&gt;
+            &lt;generator class="native"/&gt;
+        &lt;/id&gt;
+        &lt;discriminator column="type" type="character"/&gt;
+
+        &lt;property name="title"/&gt;
+        &lt;set name="authors" table="author_work" lazy="true"&gt;
+            &lt;key&gt;
+                &lt;column name="work_id" not-null="true"/&gt;
+            &lt;/key&gt;
+            &lt;many-to-many class="Author"&gt;
+                &lt;column name="author_id" not-null="true"/&gt;
+            &lt;/many-to-many&gt;
+        &lt;/set&gt;
+
+        &lt;subclass name="Book" discriminator-value="B"&gt;
+            &lt;property name="text"/&gt;
+        &lt;/subclass&gt;
+
+        &lt;subclass name="Song" discriminator-value="S"&gt;
+            &lt;property name="tempo"/&gt;
+            &lt;property name="genre"/&gt;
+        &lt;/subclass&gt;
+
+    &lt;/class&gt;
+
+    &lt;class name="Author" table="authors"&gt;
+
+        &lt;id name="id" column="id"&gt;
+            &lt;!-- L'autore deve avere lo stesso identificatore della persona (Person) --&gt;
+            &lt;generator class="assigned"/&gt; 
+        &lt;/id&gt;
+
+        &lt;property name="alias"/&gt;
+        &lt;one-to-one name="person" constrained="true"/&gt;
+
+        &lt;set name="works" table="author_work" inverse="true" lazy="true"&gt;
+            &lt;key column="author_id"/&gt;
+            &lt;many-to-many class="Work" column="work_id"/&gt;
+        &lt;/set&gt;
+
+    &lt;/class&gt;
+
+    &lt;class name="Person" table="persons"&gt;
+        &lt;id name="id" column="id"&gt;
+            &lt;generator class="native"/&gt;
+        &lt;/id&gt;
+        &lt;property name="name"/&gt;
+    &lt;/class&gt;
+
+&lt;/hibernate-mapping&gt;</pre><p>
+        In questo file di mappaggio ci sono quattro tabelle: <tt class="literal">works</tt>, 
+        <tt class="literal">authors</tt> e <tt class="literal">persons</tt> contengano le opere, i dati
+        degli autori e i dati delle persone. <tt class="literal">author_work</tt> &egrave; una tabella di 
+        associazione che collega gli autori alle opere. Ecco lo schema delle tabelle cos&igrave; come
+        generato da <tt class="literal">SchemaExport</tt>.
+    </p><pre class="programlisting">create table works (
+    id BIGINT not null generated by default as identity, 
+    tempo FLOAT, 
+    genre VARCHAR(255), 
+    text INTEGER, 
+    title VARCHAR(255), 
+    type CHAR(1) not null, 
+    primary key (id)
+)
+
+create table author_work (
+    author_id BIGINT not null, 
+    work_id BIGINT not null, 
+    primary key (work_id, author_id)
+)
+
+create table authors (
+    id BIGINT not null generated by default as identity, 
+    alias VARCHAR(255), 
+    primary key (id)
+)
+
+create table persons (
+    id BIGINT not null generated by default as identity, 
+    name VARCHAR(255), 
+    primary key (id)
+)
+
+alter table authors 
+    add constraint authorsFK0 foreign key (id) references persons
+alter table author_work 
+    add constraint author_workFK0 foreign key (author_id) references authors
+alter table author_work
+    add constraint author_workFK1 foreign key (work_id) references works</pre></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="example-mappings-customerorderproduct"></a>18.3.&nbsp;Cliente/Ordine/Prodotto (Customer/Order/Product)</h2></div></div><div></div></div><p>
+            Ora consideriamo un modello per le relazioni tra <tt class="literal">Customer</tt> (cliente),
+            <tt class="literal">Order</tt> (ordine), <tt class="literal">LineItem</tt> (linea d'ordine) e <tt class="literal">Product</tt>
+            (prodotto). C'&egrave; una associazione uno-a-molti tra <tt class="literal">Customer</tt> e
+            <tt class="literal">Order</tt>, ma come potremmo rappresentare la relazione <tt class="literal">Order</tt> / 
+            <tt class="literal">LineItem</tt> / <tt class="literal">Product</tt>? Abbiamo scelto di mappare 
+            <tt class="literal">LineItem</tt> come una classe di associazione che rappresenti la relazione molti-a-molti
+            tra gli <tt class="literal">Order</tt> e i <tt class="literal">Product</tt>. In
+            Hibernate, questo si chiama un elemento composito.
+        </p><div class="mediaobject" align="center"><img src="../shared/images/CustomerOrderProduct.gif" align="middle"></div><p>
+            Il documento di mappaggio &egrave;:
+        </p><pre class="programlisting">&lt;hibernate-mapping&gt;
+
+    &lt;class name="Customer" table="customers"&gt;
+        &lt;id name="id"&gt;
+            &lt;generator class="native"/&gt;
+        &lt;/id&gt;
+        &lt;property name="name"/&gt;
+        &lt;set name="orders" inverse="true" lazy="true"&gt;
+            &lt;key column="customer_id"/&gt;
+            &lt;one-to-many class="Order"/&gt;
+        &lt;/set&gt;
+    &lt;/class&gt;
+
+    &lt;class name="Order" table="orders"&gt;
+        &lt;id name="id"&gt;
+            &lt;generator class="native"/&gt;
+        &lt;/id&gt;
+        &lt;property name="date"/&gt;
+        &lt;many-to-one name="customer" column="customer_id"/&gt;
+        &lt;list name="lineItems" table="line_items" lazy="true"&gt;
+            &lt;key column="order_id"/&gt;
+            &lt;index column="line_number"/&gt;
+            &lt;composite-element class="LineItem"&gt;
+                &lt;property name="quantity"/&gt;
+                &lt;many-to-one name="product" column="product_id"/&gt;
+            &lt;/composite-element&gt;
+        &lt;/list&gt;
+    &lt;/class&gt;
+
+    &lt;class name="Product" table="products"&gt;
+        &lt;id name="id"&gt;
+            &lt;generator class="native"/&gt;
+        &lt;/id&gt;
+        &lt;property name="serialNumber"/&gt;
+    &lt;/class&gt;
+
+&lt;/hibernate-mapping&gt;</pre><p>
+        Le tabelle<tt class="literal">customers</tt>, <tt class="literal">orders</tt>, <tt class="literal">line_items</tt> e
+        <tt class="literal">products</tt> contengono rispettivamente dati dei clienti, degli ordini, delle linee
+        d'ordine e dei prodotti. <tt class="literal">line_items</tt> svolge anche il ruolo di tabella di associazione
+        tra gli ordini e i prodotti.
+    </p><pre class="programlisting">create table customers (
+    id BIGINT not null generated by default as identity, 
+    name VARCHAR(255), 
+    primary key (id)
+)
+
+create table orders (
+    id BIGINT not null generated by default as identity, 
+    customer_id BIGINT, 
+    date TIMESTAMP, 
+    primary key (id)
+)
+
+create table line_items (
+    line_number INTEGER not null, 
+    order_id BIGINT not null, 
+    product_id BIGINT, 
+    quantity INTEGER, 
+    primary key (order_id, line_number)
+)
+
+create table products (
+    id BIGINT not null generated by default as identity, 
+    serialNumber VARCHAR(255), 
+    primary key (id)
+)
+
+alter table orders 
+    add constraint ordersFK0 foreign key (customer_id) references customers
+alter table line_items
+    add constraint line_itemsFK0 foreign key (product_id) references products
+alter table line_items
+    add constraint line_itemsFK1 foreign key (order_id) references orders</pre></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="example-weblog.html">Indietro</a>&nbsp;</td><td width="20%" align="center"><a accesskey="u" href="index.html">Risali</a></td><td width="40%" align="right">&nbsp;<a accesskey="n" href="best-practices.html">Avanti</a></td></tr><tr><td width="40%" align="left" valign="top">Capitolo&nbsp;17.&nbsp;Esempio: una applicazione che realizza un weblog&nbsp;</td><td width="20%" align="center"><a accesskey="h" href="index.html">Partenza</a></td><td width="40%" align="right" valign="top">&nbsp;Capitolo&nbsp;19.&nbsp;Buone abitudini (best practices)</td></tr></table></div></body></html>

@@ -1,0 +1,319 @@
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+   <title>Capitolo&nbsp;14.&nbsp;Ottimizzare le prestazioni di Hibernate</title><link rel="stylesheet" href="../shared/css/html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.65.1"><link rel="home" href="index.html" title="HIBERNATE - Persistenza Relazionale Idiomatica per Java"><link rel="up" href="index.html" title="HIBERNATE - Persistenza Relazionale Idiomatica per Java"><link rel="previous" href="querysql.html" title="Capitolo&nbsp;13.&nbsp;Interrogazioni SQL native"><link rel="next" href="toolsetguide.html" title="Capitolo&nbsp;15.&nbsp;Guida degli strumenti"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Capitolo&nbsp;14.&nbsp;Ottimizzare le prestazioni di Hibernate</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="querysql.html">Indietro</a>&nbsp;</td><th width="60%" align="center">&nbsp;</th><td width="20%" align="right">&nbsp;<a accesskey="n" href="toolsetguide.html">Avanti</a></td></tr></table><hr></div><div class="chapter" lang="it"><div class="titlepage"><div><div><h2 class="title"><a name="performance"></a>Capitolo&nbsp;14.&nbsp;Ottimizzare le prestazioni di Hibernate</h2></div></div><div></div></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="performance-collections"></a>14.1.&nbsp;Capire gli aspetti legati alle prestazioni delle collezioni</h2></div></div><div></div></div><p>
+            Abbiamo gi&agrave; parlato delle collezioni da un punto di vista funzionale. 
+            In questa sezione mettiamo in evidenza alcune questioni legate a come le
+            collezioni si comportano durante l'esecuzione
+        </p><div class="sect2" lang="it"><div class="titlepage"><div><div><h3 class="title"><a name="performance-collections-taxonomy"></a>14.1.1.&nbsp;Tassonomia</h3></div></div><div></div></div><p>Hibernate definisce tre tipi fondamentali di collezioni:</p><div class="itemizedlist"><ul type="disc"><li><p>collezioni di valori</p></li><li><p>associazioni uno-a-molti</p></li><li><p>associazioni molti-a-molti</p></li></ul></div><p>
+                Questa classificazione distingue le varie relazioni tra tabelle e chiavi
+                esterne, ma non ci dice abbastanza di quello che ci interessa sul modello
+                relazionale. Per capire completamente la struttura relazionale e le
+                caratteristiche di performance, dobbiamo anche prendere in cosiderazione
+                la struttura della chiave primaria che viene usata da Hibernate per 
+                modificare o cancellare le righe corrispondenti alla collezione. Questo
+                suggerisce la classificazione seguente:
+            </p><div class="itemizedlist"><ul type="disc"><li><p>collezioni con indice (indexed collection)</p></li><li><p>insiemi (set)</p></li><li><p>"sacchi" (bags)</p></li></ul></div><p>
+                Tutte le collezioni indicizzate (mappe, liste, array) hanno una chiave primaria
+                che consiste nelle colonne <tt class="literal">&lt;key&gt;</tt> (chiave) e <tt class="literal">&lt;index&gt;</tt>
+                (indice). Solitamente in questi casi gli aggiornamenti delle collezioni sono molto performanti, poich&eacute; la
+                chiave primaria pu&ograve; essere indicizzata in modo efficiente e una riga particolare pu&ograve; quindi essere 
+                localizzata rapidamente quando Hibernate cerca di modificarla o cancellarla.
+            </p><p>
+                Gli insiemi hanno una chiave primaria che consiste delle colonne <tt class="literal">&lt;key&gt;</tt> 
+                ed <tt class="literal">&lt;element&gt;</tt>. Questo pu&ograve; essere meno efficiente per alcuni tipi di 
+                elemento della collezione, in particolare per elementi composti o campi molto lunghi di testo o 
+                dati binari; il database pu&ograve; non essere in grado di indicizzare una chiave primaria complessa in 
+                maniera altrettanto efficiente che nel caso precedente. Da un altro punto di vista, per associazioni
+                uno-a-molti o molti-a-molti, in particolare nel caso di identificatori sintetici, &egrave; probabile che sia
+                efficiente nello stesso modo. (annotazione: se volete che <tt class="literal">SchemaExport</tt> crei davvero
+                la chiave primaria di un <tt class="literal">&lt;set&gt;</tt> per voi, dovete dichiarare tutte le colonne come
+                <tt class="literal">not-null="true"</tt>.)
+            </p><p>
+                I "sacchi" (bags) sono il caso peggiore. Poich&eacute; un bag consente elementi duplicati e non ha 
+                una colonna indice, non pu&ograve; essere definita una chiave primaria. Hibernate non ha modo di 
+                distinguere tra righe duplicate, e quindi risolve il problema rimuovendo completamente (con
+                una singola <tt class="literal">DELETE</tt>) e ricreando la collezione ogni volta che cambia. 
+                Questo tuttavia pu&ograve; essere molto inefficiente.
+            </p><p>
+                Notate che per una collezione uno-a-molti, la "chiave primaria" pu&ograve; non essere la
+                chiave primaria fisica della tabella del database - ma anche in questo caso la
+                classificazione qui sopra &egrave; comunque utile, poich&eacute; riflette come Hibernate recupera
+                righe specifiche della collezione.
+            </p></div><div class="sect2" lang="it"><div class="titlepage"><div><div><h3 class="title"><a name="performance-collections-mostefficientupdate"></a>14.1.2.&nbsp;Liste, mappe e insiemi sono le collezioni pi&ugrave; efficienti da modificare</h3></div></div><div></div></div><p>
+                Dalla discussione di cui sopra, dovrebbe essere chiaro che le collezioni indicizzate 
+                e (di solito) gli insiemi consentono le operazioni pi&ugrave; efficienti in termini di 
+                aggiunta, rimozione e modifica di elementi.
+            </p><p>
+                C'&egrave; un vantaggio ulteriore che le collezioni indicizzate hanno rispetto agli insiemi
+                per le associazioni molti-a-molti o le collezioni di valori. Per come &egrave; fatta la struttura 
+                di un <tt class="literal">Set</tt>, Hibernate non aggiorna neppure (<tt class="literal">UPDATE</tt>) 
+                una riga, quando un elemento &egrave; "cambiato". I cambiamenti ad un <tt class="literal">Set</tt> 
+                funzionano semper via <tt class="literal">INSERT</tt> e <tt class="literal">DELETE</tt> (di righe individuali). 
+                Ancora una volta, ripetiamo che questa considerazione non si applica alle associazioni uno-a-molti.
+            </p><p>
+                Poich&eacute; ricordiamo che gli array non possono essere caricati a richiesta (lazy), concludiamo quindi
+                che le liste, le mappe e gli insiemi sono i tipi di collezione pi&ugrave; performanti. (Con l'avvertimento,
+                ancora una volta, che un set pu&ograve; essere meno efficiente per alcune collezioni di valori)
+            </p><p>
+                Gli insiemi sono probabilmente il genere di collezione pi&ugrave; comune nelle applicazioni basate su Hibernate.
+            </p><p>
+                <span class="emphasis"><em>C'&egrave; una funzionalit&agrave; non documentata in questa versione di Hibernate. Il mappaggio
+                <tt class="literal">&lt;idbag&gt;</tt> implementa una semantica a "bag" per una collezione 
+                di valori o una associazione molti-a-molti ed &egrave; pi&ugrave; efficiente di qualsiasi altro stile 
+                di collezione, in questo caso!</em></span>
+            </p></div><div class="sect2" lang="it"><div class="titlepage"><div><div><h3 class="title"><a name="performance-collections-mostefficentinverse"></a>14.1.3.&nbsp;I bag e le liste sono le collezioni inverse pi&ugrave; efficienti</h3></div></div><div></div></div><p>
+                Prima che buttiate via i "bag" per sempre, c'&egrave; un caso particolare in cui essi (e le liste)
+                sono molto pi&ugrave; performanti degli insiemi. Per una collezione con <tt class="literal">inverse="true"</tt>
+                (l'idioma standard per una relazione uno-a-molti, ad esempio) possiamo aggiungere elementi ad 
+                un bag o una lista senza bisogno di inizializzare (fetch) gli elementi del bag stesso! Questo 
+                perch&eacute; <tt class="literal">Collection.add()</tt> o <tt class="literal">Collection.addAll()</tt> devono 
+                sempre ritornare "true" per un bag o una <tt class="literal">List</tt> (a differenza di un 
+                <tt class="literal">Set</tt>). Questo pu&ograve; rendere il codice seguente molto pi&ugrave; veloce:
+            </p><pre class="programlisting">Parent p = (Parent) sess.load(Parent.class, id);
+    Child c = new Child();
+    c.setParent(p);
+    p.getChildren().add(c);  //no need to fetch the collection!
+    sess.flush();</pre></div><div class="sect2" lang="it"><div class="titlepage"><div><div><h3 class="title"><a name="performance-collections-oneshotdelete"></a>14.1.4.&nbsp;Cancellazione in un colpo solo</h3></div></div><div></div></div><p>
+                Di tanto in tanto, cancellare elementi di una collezione ad uno ad uno pu&ograve; essere estremamente 
+                inefficiente. Hibernate non &egrave; completamente stupido, per cui sa che non deve farlo nel caso in cui
+                una collezione sia stata appena svuotata (tramite <tt class="literal">list.clear()</tt>, ad esempio).
+                In questo caso, Hibernate utilizzer&agrave; una singola <tt class="literal">DELETE</tt> ed &egrave; tutto!
+            </p><p>
+                Supponiamo di aggiungere un elemento singolo ad una collezione di dimensione venti, e poi rimuovere
+                due elementi. Hibernate lancer&agrave; una <tt class="literal">INSERT</tt> e due <tt class="literal">DELETE</tt>
+                (a meno che la collezione sia un bag). Questo &egrave; certamente auspicabile.
+            </p><p>
+                Per&ograve;, supponiamo di rimuovere diciotto elementi, lasciandone due, e poi di aggiungere tre elementi
+                nuovi. Ci sono due modi possibili di procedere.
+            </p><div class="itemizedlist"><ul type="disc"><li><p>cancellare le diciotto righe una ad una e poi inserire le tre</p></li><li><p>rimuovere tutta la collezione in un solo comando <tt class="literal">DELETE</tt> e inserire tutti i 
+                cinque elementi rimanenti uno ad uno</p></li></ul></div><p>
+                Hibernate non &egrave; abbastanza furbo da sapere che la seconda opzione &egrave; probabilmente pi&ugrave; veloce, 
+                in questo caso. (e probabilmente non sarebbe auspicabile che Hibernate lo fosse, perch&eacute; un
+                comportamento del genere pu&ograve; confondere dei trigger, ecc.)
+            </p><p>
+                Fortunatamente, potete imporre questo comportamento (cio&egrave; la seconda strategia) in ogni momento
+                scartando (cio&egrave; dereferenziando) la collezione originale ed impostando una nuova collezione con 
+                tutti gli elementi che devono rimanere. Questo pu&ograve; essere molto utile e potente, in certi casi.
+            </p></div></div><p>
+        Abbiamo gi&agrave; mostrato come si pu&ograve; usare l'inizializzazione a richiesta (lazy) per le collezioni 
+        persistenti nel capitolo sui mappaggi delle collezioni. Un effetto simile si pu&ograve; ottenere per
+        i riferimenti agli oggetti comuni, usando i mediatori (proxy) CGLIB. Abbiamo anche detto
+        che Hibernate fa il caching degli oggetti persistenti al livello della <tt class="literal">Session</tt>. 
+        &Egrave; comunque possibile impostare strategie di caching pi&ugrave; aggressive per classi specifiche. 
+    </p><p>
+        Nella prossima sezione, vi mostriamo come usare queste funzionalit&agrave;, e quindi raggiungere
+        prestazioni pi&ugrave; elevate quando necessario.
+    </p><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="performance-proxies"></a>14.2.&nbsp;Mediatori (proxy) per l'inizializzazione a richiesta (lazy)</h2></div></div><div></div></div><p>
+            Hibernate implementa un sistema per l'inizializzazione ritardata (lazy) degli oggetti
+            persistenti tramite dei mediatori (proxy) creati in fase di esecuzione tramite una tecnica
+            di arricchimento del codice binario (byte-code) che sfrutta le funzionalit&agrave; fornite 
+            dall'eccellente libreria CGLIB.        </p><p>
+            Il file di mappaggio dichiara una classe o un'interfaccia che va usata come
+            interfaccia del proxy per quella classe. L'approccio raccomandato &egrave; specificare
+            la classe stessa:
+        </p><pre class="programlisting">&lt;class name="eg.Order" proxy="eg.Order"&gt;</pre><p>
+            Il tipo dei proxy in fase di esecuzione sar&agrave; una sottoclasse di <tt class="literal">Order</tt>. Notate
+            che la classe "mediata" (proxied) deve implementare un costruttore di default per lo meno con 
+            visibilit&agrave; a livello di package.
+        </p><p>
+            Ci sono alcune peculiarit&agrave; di cui essere a conoscenza, quando si estende questo
+            approccio alle classi polimorfiche, ad esempio:
+        </p><pre class="programlisting">&lt;class name="eg.Cat" proxy="eg.Cat"&gt;
+    ......
+    &lt;subclass name="eg.DomesticCat" proxy="eg.DomesticCat"&gt;
+        .....
+    &lt;/subclass&gt;
+&lt;/class&gt;</pre><p>
+            Prima di tutto, le istanze di <tt class="literal">Cat</tt> non potranno essere oggetto 
+            di "cast" a <tt class="literal">DomesticCat</tt>, anche se l'istanza sottostante &egrave; 
+            effettivamente un <tt class="literal">DomesticCat</tt>.
+        </p><pre class="programlisting">Cat cat = (Cat) session.load(Cat.class, id);  // instantiate a proxy (does not hit the db)
+if ( cat.isDomesticCat() ) {                  // hit the db to initialize the proxy
+    DomesticCat dc = (DomesticCat) cat;       // Error!
+    ....
+}</pre><p>
+            In secondo luogo, &egrave; possibile che la semantica di <tt class="literal">==</tt> non valga per il proxy.
+        </p><pre class="programlisting">
+Cat cat = (Cat) session.load(Cat.class, id);            // instantiate a Cat proxy
+DomesticCat dc = 
+    (DomesticCat) session.load(DomesticCat.class, id);  // required new DomesticCat proxy!
+System.out.println(cat==dc);                            // false</pre><p>
+            Comunque, queste situazioni non sono poi cos&igrave; male come sembra. Anche se ora abbiamo due 
+            riferimenti diversi ad oggetti proxy, l'istanza sottostante &egrave; comunque la stessa:
+        </p><pre class="programlisting">cat.setWeight(11.0);  // hit the db to initialize the proxy
+System.out.println( dc.getWeight() );  // 11.0</pre><p>
+            Terzo, non &egrave; possibile usare un mediatore CGLIB per una classe <tt class="literal">final</tt> 
+            o per una classe con metodi <tt class="literal">final</tt>.
+        </p><p>
+            Infine, se il vostro oggetto persistente acquisisce delle risorse in fase di istanziazione
+            (ad esempio negli inizializzatori o nel costruttore di default), quelle risorse saranno 
+            acquisite anche dal proxy, poich&eacute; la classe del proxy &egrave; effettivamente 
+            una sottoclasse della classe persistente.
+        </p><p>
+            Questi problemi sono tutti derivanti da limitazioni di base nel modello a ereditariet&agrave; 
+            singola di Java. Se volete evitarli, le vostre classi persistenti devono implementare 
+            un'interfaccia che dichiari i loro metodi di business. Dovete poi specificare queste interfacce
+            nel file di mapping, ad esempio cos&igrave;:
+        </p><pre class="programlisting">&lt;class name="eg.Cat" proxy="eg.ICat"&gt;
+    ......
+    &lt;subclass name="eg.DomesticCat" proxy="eg.IDomesticCat"&gt;
+        .....
+    &lt;/subclass&gt;
+&lt;/class&gt;</pre><p>
+            laddove <tt class="literal">Cat</tt> implementa l'interfaccia <tt class="literal">ICat</tt> e
+            <tt class="literal">DomesticCat</tt> implementa l'interfaccia <tt class="literal">IDomesticCat</tt>. 
+            A questo punto, <tt class="literal">load()</tt> o <tt class="literal">iterate()</tt> possono restituire 
+            direttamente istanze di <tt class="literal">Cat</tt> e <tt class="literal">DomesticCat</tt> . (Notate che
+            <tt class="literal">find()</tt> non restituisce mediatori.)
+        </p><pre class="programlisting">ICat cat = (ICat) session.load(Cat.class, catid);
+Iterator iter = session.iterate("from cat in class eg.Cat where cat.name='fritz'");
+ICat fritz = (ICat) iter.next();</pre><p>
+            Anche le relazioni sono inizializzate in maniera ritardata. Questo significa che dovete dichiarare
+            le propriet&agrave; di tipo <tt class="literal">ICat</tt>, e non <tt class="literal">Cat</tt>.
+        </p><p>
+            Alcune operazioni <span class="emphasis"><em>non</em></span> richiedono inizializzazione del proxy
+        </p><div class="itemizedlist"><ul type="disc" compact><li><p>
+                    <tt class="literal">equals()</tt>, se la classe persistente non sovrascrive
+                    <tt class="literal">equals()</tt>
+                </p></li><li><p>
+                    <tt class="literal">hashCode()</tt>, se la classe persistente non sovrascrive
+                    <tt class="literal">hashCode()</tt>
+                </p></li><li><p>
+                    Il metodo "getter" per l'identificatore.
+                </p></li></ul></div><p>
+            Hibernate individuer&agrave; le classi persistenti che sovrascrivono <tt class="literal">equals()</tt> o
+            <tt class="literal">hashCode()</tt>.
+        </p><p>
+            Le eccezioni che capitano quando si inizializza un proxy vengono 
+            racchiuse in una <tt class="literal">LazyInitializationException</tt>.
+        </p><p>
+            In alcuni casi, dobbiamo assicuarci che un mediatore o una collezione vengano inizializzati
+            prima di chiudere la <tt class="literal">Session</tt>. Naturalmente, possiamo sempre forzare l'inizializzazione
+            chiamando <tt class="literal">cat.getSex()</tt> o <tt class="literal">cat.getKittens().size()</tt>, ad esempio.
+            Ma questo confonde chi legge il codice e non &egrave; pratico per del codice generico. I metodi statici 
+            <tt class="literal">Hibernate.initialize()</tt> e <tt class="literal">Hibernate.isInitialized()</tt>
+            forniscono all'applicazione un modo comodo per lavorare con collezioni inizializzate a richiesta
+            o con i mediatori. <tt class="literal">Hibernate.initialize(cat)</tt> imporr&agrave; l'inizializzazione di un mediatore
+            <tt class="literal">cat</tt>, a condizione che la sua <tt class="literal">Session</tt> sia ancora aperta.
+            <tt class="literal">Hibernate.initialize( cat.getKittens() )</tt> ha un effetto simile per la collezione dei gattini
+            (kitten ;) ). 
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="performance-cache"></a>14.3.&nbsp;La cache di secondo livello</h2></div></div><div></div></div><p>
+            Una <tt class="literal">Session</tt> di Hibernate &egrave; una cache di dati persistenti durante la transazione.
+            &Egrave; possibile configurare una cache a livello di cluster o a livello di macchina virtuale (JVM-level o 
+            <tt class="literal">SessionFactory</tt>-level) per classi o collezioni specifiche. &Egrave; anche possibile 
+            agganciare (plug-in) una cache in cluster. Fate attenzione, tuttavia: le cache non sono mai coscienti
+            di cambiamenti fatti ai dati sul contentitore fisico da un'altra applicazione (bench&eacute; possano essere
+            configurate in modo tale da fare scadere i dati conservati in memoria).
+        </p><p>
+            L'impostazione predefinita di Hibernate &egrave; di usare la libreria EHCache per il caching a livello di JVM 
+            (Il supporto di JCS &egrave; deprecato e verr&agrave; rimosso in una versione futura di Hibernate). &Egrave; possibile
+            scegliere una implementazione diversa speficicando il nome di una classe che implementi
+            <tt class="literal">net.sf.hibernate.cache.CacheProvider</tt> usando la propriet&agrave;
+            <tt class="literal">hibernate.cache.provider_class</tt>.
+        </p><div class="table"><a name="d0e8628"></a><p class="title"><b>Tabella&nbsp;14.1.&nbsp;Fornitori di cache</b></p><table summary="Fornitori di cache" border="1"><colgroup><col align="left"><col align="left"><col align="left"><col align="left"><col align="left"></colgroup><thead><tr><th align="left">Cache</th><th align="left">Classe fornitore</th><th align="left">Tipo</th><th align="left">Funziona in cluster</th><th align="left">Supporta interrogazione della cache</th></tr></thead><tbody><tr><td align="left">Hashtable (non adatta per un uso in produzione)</td><td align="left"><tt class="literal">net.sf.hibernate.cache.HashtableCacheProvider</tt></td><td align="left">memoria</td><td align="left">&nbsp;</td><td align="left">s&igrave;</td></tr><tr><td align="left">EHCache</td><td align="left"><tt class="literal">net.sf.ehcache.hibernate.Provider</tt></td><td align="left">memoria, disco</td><td align="left">&nbsp;</td><td align="left">s&igrave;</td></tr><tr><td align="left">OSCache</td><td align="left"><tt class="literal">net.sf.hibernate.cache.OSCacheProvider</tt></td><td align="left">memoria, disco</td><td align="left">&nbsp;</td><td align="left">s&igrave;</td></tr><tr><td align="left">SwarmCache</td><td align="left"><tt class="literal">net.sf.hibernate.cache.SwarmCacheProvider</tt></td><td align="left">cluster (via ip multicast)</td><td align="left">s&igrave; (invalidazione sul cluster)</td><td align="left">&nbsp;</td></tr><tr><td align="left">JBoss TreeCache</td><td align="left"><tt class="literal">net.sf.hibernate.cache.TreeCacheProvider</tt></td><td align="left">cluster (via ip multicast), transazionale</td><td align="left">s&igrave; (replicazione)</td><td align="left">&nbsp;</td></tr></tbody></table></div><div class="sect2" lang="it"><div class="titlepage"><div><div><h3 class="title"><a name="performance-cache-mapping"></a>14.3.1.&nbsp;Mappaggi e cache</h3></div></div><div></div></div><p>
+                L'elemento <tt class="literal">&lt;cache&gt;</tt> per il mappaggio di una classe o di una collezione
+                ha la forma seguente:
+            </p><div class="programlistingco"><pre class="programlisting">&lt;cache 
+    usage="transactional|read-write|nonstrict-read-write|read-only"  <span class="co">(1)</span>
+/&gt;</pre><div class="calloutlist"><table border="0" summary="Callout list"><tr><td width="5%" valign="top" align="left">(1)</td><td valign="top" align="left"><p>
+                            <tt class="literal">usage</tt> specifica la strategia di caching:
+                            <tt class="literal">transactional</tt>,
+                            <tt class="literal">read-write</tt>,
+                            <tt class="literal">nonstrict-read-write</tt> or
+                            <tt class="literal">read-only</tt>
+                        </p></td></tr></table></div></div><p>
+                In alternativa (preferibilmente), si possono specificare gli elementi <tt class="literal">&lt;class-cache&gt;</tt> e 
+                <tt class="literal">&lt;collection-cache&gt;</tt> in <tt class="literal">hibernate.cfg.xml</tt>.
+            </p><p>
+                L'attributo <tt class="literal">usage</tt> speficica una <span class="emphasis"><em>strategia di concorrenza per la cache</em></span>.
+            </p></div><div class="sect2" lang="it"><div class="titlepage"><div><div><h3 class="title"><a name="performance-cache-readonly"></a>14.3.2.&nbsp;Strategia: sola lettura</h3></div></div><div></div></div><p>
+                Se la vostra applicazione ha bisogno di leggere ma non modifica mai istanze di una classe
+                persistente, si pu&ograve; usare una cache <tt class="literal">read-only</tt> (sola lettura). Si tratta della 
+                strategia pi&ugrave; semplice e pi&ugrave; performante. Funziona anche perfettamente in un cluster.
+            </p><pre class="programlisting">&lt;class name="eg.Immutable" mutable="false"&gt;
+    &lt;cache usage="read-only"/&gt;
+    ....
+&lt;/class&gt;</pre></div><div class="sect2" lang="it"><div class="titlepage"><div><div><h3 class="title"><a name="performance-cache-readwrite"></a>14.3.3.&nbsp;Strategia: lettura/scrittura</h3></div></div><div></div></div><p>
+                Se l'applicazione deve modificare i dati, una cache <tt class="literal">read-write</tt> (lettura/scrittura)
+                potrebbe essere appropriata. Questa strategia di caching non dovrebbe essere mai usata se &egrave; richiesto
+                un livello di isolamento serializzabile delle transazioni. Se la cache &egrave; usata in un ambiente JTA,
+                dovete specificare la propriet&agrave; <tt class="literal">hibernate.transaction.manager_lookup_class</tt>, 
+                indicando una strategia per ottenere il <tt class="literal">TransactionManager</tt> JTA. In altri ambienti,
+                dovete assicurarvi che la transazione venga completata quando vengono chiamati <tt class="literal">Session.close()</tt> 
+                o <tt class="literal">Session.disconnect()</tt>. Se volete usare questa strategia in un cluster, dovete assicurarvi
+                che l'implementazione della cache sottostante supporti il locking. La cache fornita con Hibernate 
+                <span class="emphasis"><em>non</em></span> lo fa.
+            </p><pre class="programlisting">&lt;class name="eg.Cat" .... &gt;
+    &lt;cache usage="read-write"/&gt;
+    ....
+    &lt;set name="kittens" ... &gt;
+        &lt;cache usage="read-write"/&gt;
+        ....
+    &lt;/set&gt;
+&lt;/class&gt;</pre></div><div class="sect2" lang="it"><div class="titlepage"><div><div><h3 class="title"><a name="performance-cache-nonstrict"></a>14.3.4.&nbsp;Strategia: lettura/scrittura non stretta</h3></div></div><div></div></div><p>
+                Se l'applicazione ha bisogno di modificare dati solo occasionalmente (cio&egrave; se &egrave; molto improbabile
+                che due transazioni tentino di modificare lo stesso oggetto simultaneamente) e l'isolamento stretto
+                delle transazioni non &egrave; richiesto, potrebbe essere appropriata una cache <tt class="literal">nonstrict-read-write</tt> 
+                (lettura/scrittura non stretta). 
+                Se la cache &egrave; usata in un ambiente JTA, dovete specificare <tt class="literal">hibernate.transaction.manager_lookup_class</tt>.
+                In altri ambienti, dovete assicurare che la transazione sia completa quando vengono chiamati
+                <tt class="literal">Session.close()</tt> o <tt class="literal">Session.disconnect()</tt>.
+            </p></div><div class="sect2" lang="it"><div class="titlepage"><div><div><h3 class="title"><a name="performance-cache-transactional"></a>14.3.5.&nbsp;Strategia: transazionale</h3></div></div><div></div></div><p>
+                La strategia di caching <tt class="literal">transazionale</tt> fornisce supporto per cache completamente transazionali come
+                la JBoss TreeCache. Una cache di questo tipo pu&ograve; essere usata solo in un contesto JTA e dovete specificare la propriet&agrave; 
+                <tt class="literal">hibernate.transaction.manager_lookup_class</tt>. 
+            </p></div><p>
+            Nessuno dei fornitori di cache supporta tutte le strategie di concorrenza. La tabella seguente mostra
+            quali fornitori sono compatibili con quali strategie di concorrenza.
+        </p><div class="table"><a name="d0e8821"></a><p class="title"><b>Tabella&nbsp;14.2.&nbsp;Supporto alle strategie di concorrenza delle cache</b></p><table summary="Supporto alle strategie di concorrenza delle cache" border="1"><colgroup><col align="left"><col align="left"><col align="left"><col align="left"><col align="left"></colgroup><thead><tr><th align="left">Cache</th><th align="left">read-only</th><th align="left">nonstrict-read-write</th><th align="left">read-write</th><th align="left">transactional</th></tr></thead><tbody><tr><td align="left">Hashtable (non adatta per un uso in produzione)</td><td align="left">S&igrave;</td><td align="left">S&igrave;</td><td align="left">S&igrave;</td><td align="left">&nbsp;</td></tr><tr><td align="left">EHCache</td><td align="left">S&igrave;</td><td align="left">S&igrave;</td><td align="left">S&igrave;</td><td align="left">&nbsp;</td></tr><tr><td align="left">OSCache</td><td align="left">S&igrave;</td><td align="left">S&igrave;</td><td align="left">S&igrave;</td><td align="left">&nbsp;</td></tr><tr><td align="left">SwarmCache</td><td align="left">S&igrave;</td><td align="left">S&igrave;</td><td align="left">&nbsp;</td><td align="left">&nbsp;</td></tr><tr><td align="left">JBoss TreeCache</td><td align="left">S&igrave;</td><td align="left">&nbsp;</td><td align="left">&nbsp;</td><td align="left">S&igrave;</td></tr></tbody></table></div></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="performance-sessioncache"></a>14.4.&nbsp;Gestione della cache di <tt class="literal">Session</tt></h2></div></div><div></div></div><p>
+            Ogni volta che passate un oggetto ai metodi<tt class="literal">save()</tt>, <tt class="literal">update()</tt>
+            o <tt class="literal">saveOrUpdate()</tt> e ogni volta che ne recuperate uno usando  
+            <tt class="literal">load()</tt>, <tt class="literal">find()</tt>, <tt class="literal">iterate()</tt>,
+            o <tt class="literal">filter()</tt>, quell'oggetto viene aggiunto alla cache interna della 
+            <tt class="literal">Session</tt>. Quando poi viene chiamato <tt class="literal">flush()</tt>,
+            lo stato di quell'oggetto sar&agrave; sincronizzato con il database. Se non volete che
+            questa sincronizzazione avvenga, o se state elaborando un grande numero di oggetti
+            e volete gestire la memoria efficentemente, potete usare il metodo <tt class="literal">evict()</tt>
+            per rimuovere l'oggetto e le sue collezioni dalla cache.
+        </p><pre class="programlisting">Iterator cats = sess.iterate("from eg.Cat as cat"); //a huge result set
+while ( cats.hasNext() ) {
+    Cat cat = (Cat) iter.next();
+    doSomethingWithACat(cat);
+    sess.evict(cat);
+}</pre><p>
+            La <tt class="literal">Session</tt> fornisce anche un metodo <tt class="literal">contains()</tt> 
+            per determinare se un'istanza appartiene alla cache di sessione.
+        </p><p>
+            Per rimuovere completamente tutti gli oggetti dalla cache si sessione, esiste il metodo
+            <tt class="literal">Session.clear()</tt>
+        </p><p>
+            Per la cache di secfondo livello, ci sono dei metodi definiti su <tt class="literal">SessionFactory</tt> 
+            e che hanno lo scopo di rimuovere lo stato di un'istanza dalla cache, una intera classe, una istanza 
+            di collezione o un intero ruolo di collezione.
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="performance-querycache"></a>14.5.&nbsp;La cache delle query</h2></div></div><div></div></div><p>
+            Gli insiemi di risultati (result set) delle query possono anche venire messi in cache. Questo &egrave; utile solo per 
+            quelle query che vengono lanciate frequentemente con gli stessi parametri. Per usare la
+            cache delle query dovete prima attivarla settando la propriet&agrave;
+            <tt class="literal">hibernate.cache.use_query_cache=true</tt>. Questo causa la creazione di 
+            due regioni nella cache, una che mantiene i set di risultati delle query,  
+            (<tt class="literal">net.sf.hibernate.cache.QueryCache</tt>), l'altra che mantiene le etichette di tempo (timestamp)
+            degli aggiornamenti pi&ugrave; recenti alle tabelle interrogate.
+            (<tt class="literal">net.sf.hibernate.cache.UpdateTimestampsCache</tt>). Notate che la cache 
+            delle query non memorizza lo stato delle entit&agrave; nel result set; quello che mette in cache sono solo
+            i valori dei risultati e i valori dei tipi. Per questo, la cache delle query viene solitamente usata 
+            insieme alla cache di secondo livello.
+        </p><p>
+            La maggior parte delle interrogazione non traggono particolari benefici dal caching, 
+            per questo l'impostazione predefinita non lo prevede. Per attivarlo, chiamate
+            <tt class="literal">Query.setCacheable(true)</tt>. Questo metodo consente alla query di 
+            cercare risultati nella cache o di aggiungere i suoi risultati quando viene eseguita.
+        </p><p>
+            Se avete bisogno di controllo pi&ugrave; raffinato sulle politiche di scadenza delle cache, 
+            potete specificare una regione della cache per nome e per una particolare interrogazione 
+            chiamando il metodo <tt class="literal">Query.setCacheRegion()</tt>.
+        </p><pre class="programlisting">List blogs = sess.createQuery("from Blog blog where blog.blogger = :blogger")
+    .setEntity("blogger", blogger)
+    .setMaxResults(15)
+    .setCacheable(true)
+    .setCacheRegion("frontpages")
+    .list();</pre></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="querysql.html">Indietro</a>&nbsp;</td><td width="20%" align="center"><a accesskey="u" href="index.html">Risali</a></td><td width="40%" align="right">&nbsp;<a accesskey="n" href="toolsetguide.html">Avanti</a></td></tr><tr><td width="40%" align="left" valign="top">Capitolo&nbsp;13.&nbsp;Interrogazioni SQL native&nbsp;</td><td width="20%" align="center"><a accesskey="h" href="index.html">Partenza</a></td><td width="40%" align="right" valign="top">&nbsp;Capitolo&nbsp;15.&nbsp;Guida degli strumenti</td></tr></table></div></body></html>

@@ -1,0 +1,235 @@
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+   <title>Capitolo&nbsp;16.&nbsp;Esempio: Genitore/Figlio (Parent/Child)</title><link rel="stylesheet" href="../shared/css/html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.65.1"><link rel="home" href="index.html" title="HIBERNATE - Persistenza Relazionale Idiomatica per Java"><link rel="up" href="index.html" title="HIBERNATE - Persistenza Relazionale Idiomatica per Java"><link rel="previous" href="toolsetguide.html" title="Capitolo&nbsp;15.&nbsp;Guida degli strumenti"><link rel="next" href="example-weblog.html" title="Capitolo&nbsp;17.&nbsp;Esempio: una applicazione che realizza un weblog"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Capitolo&nbsp;16.&nbsp;Esempio: Genitore/Figlio (Parent/Child)</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="toolsetguide.html">Indietro</a>&nbsp;</td><th width="60%" align="center">&nbsp;</th><td width="20%" align="right">&nbsp;<a accesskey="n" href="example-weblog.html">Avanti</a></td></tr></table><hr></div><div class="chapter" lang="it"><div class="titlepage"><div><div><h2 class="title"><a name="example-parentchild"></a>Capitolo&nbsp;16.&nbsp;Esempio: Genitore/Figlio (Parent/Child)</h2></div></div><div></div></div><p>
+        Una delle primissime cose che i nuovi utenti tentano di fare con Hibernate &egrave; modellare una relazione
+        di tipo genitore / figlio. Ci sono due approcci differenti, per farlo. Per varie ragioni, l'approccio
+        pi&ugrave; conveniente, soprattutto per i neofiti, &egrave; modellare sia <tt class="literal">Parent</tt> sia <tt class="literal">Child</tt> 
+        come classi di entit&agrave; con una associazione <tt class="literal">&lt;one-to-many&gt;</tt> da <tt class="literal">Parent</tt> 
+        a <tt class="literal">Child</tt>. (L'approccio alternativo &egrave; dichiarare il <tt class="literal">Child</tt> come un
+        <tt class="literal">&lt;composite-element&gt;</tt>.) Ora, la semantica predefinita di una associazione uno-a-molti in 
+        Hibernate &egrave; molto meno affine alla semantica usuale di una relazione genitore - figlio di quanto non lo sia 
+        quella di un mappaggio ad elemento composito. Mostreremo ora come usare una <span class="emphasis"><em>associazione uno a molti 
+        bidirezionale e con cascate</em></span> per modellare una relazione genitore / figlio in maniera efficiente. Non
+        &egrave; per niente difficile!
+    </p><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="example-parentchild-collections"></a>16.1.&nbsp;Una nota sulle collezioni</h2></div></div><div></div></div><p>
+            Le collezioni di Hibernate vengono considerate logicamente parte della entit&agrave; che le possiede, e 
+            mai delle entit&agrave; contenute. Questa &egrave; una precisazione cruciale, che ha le seguenti conseguenze:
+        </p><div class="itemizedlist"><ul type="disc"><li><p>
+                Quando rimuoviamo / aggiungiamo un oggetto da / a una collezione, il numero di versione del 
+                proprietario viene incrementato.
+            </p></li><li><p>
+                Se un oggetto che &egrave; stato rimosso da una collezione &egrave; un'istanza di un tipo di valore ("value type"), 
+                cio&egrave; un elemento composito, quell'oggetto cesser&agrave; di essere persistente e il suo stato verr&agrave; completamente
+                rimosso dal database. Nello stesso modo, aggiungendo una istanza di un tipo di valore alla collezione 
+                causer&agrave; il fatto che il suo stato sar&agrave; reso persistente.
+            </p></li><li><p>
+                Dall'altro lato, se un'entit&agrave; viene rimossa da una collezione (che sia associata uno-a-molti o 
+                molti-a-molti), non verr&agrave; cancellata, come funzionamento predefinito. Questo comportamento &egrave; del
+                tutto coerente - un cambiamento allo stato interno di un'altra entit&agrave; non dovrebbe causare il fatto
+                che l'entit&agrave; associata svanisca! Nello stesso modo, l'aggiunta di un'entit&agrave; a una collezione non causa
+                il fatto che quell'entit&agrave; venga automaticamente resa persistente (nel comportamento predefinito).
+            </p></li></ul></div><p>
+            Invece, il comportamento standard prevede che aggiungere un'entit&agrave; a una collezione si limiti a creare
+            un collegamento tra le due entit&agrave;, cos&igrave; come rimuoverla determiner&agrave; la rimozione di quel collegamento.
+            Questo funzionamento &egrave; il pi&ugrave; appropriato per moltissimi casi, mentre non &egrave; appropriato per nulla
+            nel caso di una relazione genitore / figlio in cui la vita del figlio sia legata al ciclo di vita del
+            genitore.
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="example-parentchild-bidir"></a>16.2.&nbsp;Uno-a-molti bidirezionale</h2></div></div><div></div></div><p>
+            Supponete che cominciamo con una semplice associazione <tt class="literal">&lt;one-to-many&gt;</tt> da
+            <tt class="literal">Parent</tt> a <tt class="literal">Child</tt>.
+        </p><pre class="programlisting">&lt;set name="children"&gt;
+    &lt;key column="parent_id"/&gt;
+    &lt;one-to-many class="Child"/&gt;
+&lt;/set&gt;</pre><p>
+            Se dovessimo eseguire il codice seguente
+        </p><pre class="programlisting">Parent p = .....;
+Child c = new Child();
+p.getChildren().add(c);
+session.save(c);
+session.flush();</pre><p>
+            Hibernate produrrebbe le due istruzioni SQL che seguono:
+        </p><div class="itemizedlist"><ul type="disc"><li><p>una <tt class="literal">INSERT</tt> per creare il record per <tt class="literal">c</tt></p></li><li><p>
+                una <tt class="literal">UPDATE</tt> per creare il collegamento da <tt class="literal">p</tt> a
+                <tt class="literal">c</tt>
+            </p></li></ul></div><p>
+            Questo non solo &egrave; inefficiente, ma viola anche i vincoli <tt class="literal">NOT NULL</tt> sulla colonna
+            <tt class="literal">parent_id</tt>.
+        </p><p>
+            La causa soggiacente &egrave; che il collegamento (la chiave esterna <tt class="literal">parent_id</tt>) da
+            <tt class="literal">p</tt> a <tt class="literal">c</tt> non viene considerata parte dello stato dell'oggetto <tt class="literal">Child</tt>
+            &egrave; quindi non viene creata nell'istruzione <tt class="literal">INSERT</tt>. La soluzione &egrave; quindi fare in modo che il collegamento
+            sia parte del mappaggio di <tt class="literal">Child</tt>.
+        </p><pre class="programlisting">&lt;many-to-one name="parent" column="parent_id" not-null="true"/&gt;</pre><p>
+            (Abbiamo anche bisogno di aggiungere la propriet&agrave; <tt class="literal">parent</tt> sulla classe <tt class="literal">Child</tt>.)
+        </p><p>
+            Ora che l'entit&agrave; <tt class="literal">Child</tt> gestisce lo stato del collegamento, diciamo alla collezione di non aggiornarlo. 
+            Usiamo quindi l'attributo <tt class="literal">inverse</tt>.
+        </p><pre class="programlisting">&lt;set name="children" inverse="true"&gt;
+    &lt;key column="parent_id"/&gt;
+    &lt;one-to-many class="Child"/&gt;
+&lt;/set&gt;</pre><p>
+            Per aggiungere un nuovo <tt class="literal">Child</tt> verrebbe allora usato il codice seguente:
+        </p><pre class="programlisting">Parent p = (Parent) session.load(Parent.class, pid);
+Child c = new Child();
+c.setParent(p);
+p.getChildren().add(c);
+session.save(c);
+session.flush();</pre><p>
+            E ora verr&agrave; generata una sola <tt class="literal">INSERT</tt> SQL!
+        </p><p>
+            Per facilitare un po' le cose, possiamo creare un metodo <tt class="literal">addChild()</tt> al
+            <tt class="literal">Parent</tt>.
+        </p><pre class="programlisting">public void addChild(Child c) {
+    c.setParent(this);
+    children.add(c);
+}</pre><p>
+            A questo punto il codice per aggiungere un <tt class="literal">Child</tt> appare cos&igrave;:
+        </p><pre class="programlisting">Parent p = (Parent) session.load(Parent.class, pid);
+Child c = new Child();
+p.addChild(c);
+session.save(c);
+session.flush();</pre></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="example-parentchild-cascades"></a>16.3.&nbsp;Ciclo di vita con cascate</h2></div></div><div></div></div><p>
+             La chiamata esplicita a <tt class="literal">save()</tt> ci infastidisce ancora. Abbiamo quindi bisogno di gestire
+             la situazione usando le cascate.
+         </p><pre class="programlisting">&lt;set name="children" inverse="true" cascade="all"&gt;
+    &lt;key column="parent_id"/&gt;
+    &lt;one-to-many class="Child"/&gt;
+&lt;/set&gt;</pre><p>
+             Questo semplifica il codice seguente in questo modo:
+         </p><pre class="programlisting">Parent p = (Parent) session.load(Parent.class, pid);
+Child c = new Child();
+p.addChild(c);
+session.flush();</pre><p>
+             In maniera similare, non abbiamo bisogno di iterare sui figli per salvare o cancellare un <tt class="literal">Parent</tt>.
+             Quanto segue rimuove <tt class="literal">p</tt> e tutti i suoi figli dal database.
+         </p><pre class="programlisting">Parent p = (Parent) session.load(Parent.class, pid);
+session.delete(p);
+session.flush();</pre><p>
+             Per&ograve; il codice seguente
+         </p><pre class="programlisting">Parent p = (Parent) session.load(Parent.class, pid);
+Child c = (Child) p.getChildren().iterator().next();
+p.getChildren().remove(c);
+c.setParent(null);
+session.flush();</pre><p>
+             non rimuover&agrave; ancora <tt class="literal">c</tt> from the database; rimuover&agrave; solo il link verso <tt class="literal">p</tt>
+             (e causer&agrave; la violazione di vincolo <tt class="literal">NOT NULL</tt>, in questo caso). C'&egrave; bisogno di cancellare 
+             esplicitamente (<tt class="literal">delete()</tt>) il <tt class="literal">Child</tt>.
+         </p><pre class="programlisting">Parent p = (Parent) session.load(Parent.class, pid);
+Child c = (Child) p.getChildren().iterator().next();
+p.getChildren().remove(c);
+session.delete(c);
+session.flush();</pre><p>
+             Ora, nel nostro caso un <tt class="literal">Child</tt> non pu&ograve; esistere senza il suo genitore. Quindi se rimuoviamo
+             un <tt class="literal">Child</tt> dalla collezione, vogliamo che venga cancellato davvero. Per questo, dobbiamo usare
+             <tt class="literal">cascade="all-delete-orphan"</tt>.
+         </p><pre class="programlisting">&lt;set name="children" inverse="true" cascade="all-delete-orphan"&gt;
+    &lt;key column="parent_id"/&gt;
+    &lt;one-to-many class="Child"/&gt;
+&lt;/set&gt;</pre><p>
+             Nota: anche se il mappaggio della collezione specifica <tt class="literal">inverse="true"</tt>, le cascate sono 
+             comunque gestite iterando sugli elementi della collezione. Quindi, se avete bisogno che un oggetto venga
+             salvato, cancellato, o aggiornato per cascata, dovete aggiungerlo alla collezione. Non &egrave; sufficiente chiamare
+             solo <tt class="literal">setParent()</tt>.
+         </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="example-parentchild-update"></a>16.4.&nbsp;Come utilizzare <tt class="literal">update()</tt> in cascata</h2></div></div><div></div></div><p>
+             Immaginate che carichiamo un <tt class="literal">Parent</tt> in una <tt class="literal">Session</tt>, facciamo qualche
+             cambiamento ad una azione di interfaccia e vogliamo rendere persistenti questi cambiamenti in una nuova Session 
+             (chiamando <tt class="literal">update()</tt>). Il <tt class="literal">Parent</tt> conterr&agrave; una collezione di figli e,
+             poich&eacute; &egrave; abilitato l'aggiornamento in cascata, Hibernate ha bisogno di sapere quali figli siano appena stati 
+             istanziati, e quali invece rappresentino righe gi&agrave; esistenti nel database. Assumiamo che sia il <tt class="literal">Parent</tt> 
+             sia il <tt class="literal">Child</tt> abbiano propriet&agrave; di identificazione (sintetiche) di tipo
+             <tt class="literal">java.lang.Long</tt>. Hibernate user&agrave; il valore della propriet&agrave; identificatore per determinare quali dei figli
+             sono nuovi. (Potete anche usare le propriet&agrave; versione o marca di tempo (timestamp), vedete
+             <a href="manipulatingdata.html#manipulatingdata-updating-detached" title="9.4.2.&nbsp;Aggiornamento di oggetti sganciati">Sezione&nbsp;9.4.2, &#8220;Aggiornamento di oggetti sganciati&#8221;</a>.)
+         </p><p>
+             L'attributo <tt class="literal">unsaved-value</tt> viene usato per specificae il valore di identificatore di una
+             istanza appena creata. Se non specificato, <tt class="literal">unsaved-value</tt> vale "null", il che &egrave; perfetto, per 
+             un identificatore di tipo <tt class="literal">Long</tt>. Se avessimo usato una propriet&agrave; di identificazione di un tipo
+             primitivo, dovremmo specificare
+         </p><pre class="programlisting">&lt;id name="id" type="long" unsaved-value="0"&gt;</pre><p>
+             per il mappaggio del <tt class="literal">Child</tt>. (C'&egrave; anche un attributo <tt class="literal">unsaved-value</tt>
+             per i mappaggi di propriet&agrave; di versione e timestamp.)
+         </p><p>
+             Il codice seguente aggiorner&agrave; il <tt class="literal">parent</tt> e <tt class="literal">child</tt> e inserir&agrave;
+             <tt class="literal">newChild</tt>.
+         </p><pre class="programlisting">//parent e child sono gi&agrave; stati caricati in una sessione precedente
+parent.addChild(child);
+Child newChild = new Child();
+parent.addChild(newChild);
+session.update(parent);
+session.flush();</pre><p>
+             Bene, questo &egrave; perfetto per il caso in cui si abbia un identificatore generato automaticamente, ma
+             cosa succede quando si hanno identificatori assegnati manualmente e identificatori composti? In questo caso
+             &egrave; pi&ugrave; difficile, perch&eacute; <tt class="literal">unsaved-value</tt> non pu&ograve; distinguere tra un oggetto appena
+             istanziato (con identificatore assegnato dall'utente) e un oggetto caricato in una sessione precedente). In 
+             questi casi, avrete probabilmente bisogno di dare una mano ad Hibernate, o
+         </p><div class="itemizedlist"><ul type="disc"><li><p>
+                 definendo <tt class="literal">unsaved-value="null"</tt> o <tt class="literal">unsaved-value="negative"</tt>
+                 su una propriet&agrave; <tt class="literal">&lt;version&gt;</tt> o <tt class="literal">&lt;timestamp&gt;</tt> per la classe.
+             </p></li><li><p>
+                 impostare <tt class="literal">unsaved-value="none"</tt> e salvare esplicitamente (con <tt class="literal">save()</tt>)
+                 i figli appena istanziati prima di chiamare <tt class="literal">update(parent)</tt>
+             </p></li><li><p>
+                 impostare <tt class="literal">unsaved-value="any"</tt> ed aggiornare esplicitamente (con <tt class="literal">update()</tt>)
+                 i figli precedentemente resi persistenti prima di chiamare <tt class="literal">update(parent)</tt>
+             </p></li></ul></div><p>
+             <tt class="literal">none</tt> &egrave; il valore <tt class="literal">unsaved-value</tt> predefinito per gli identificatori assegnati e 
+             composti.
+         </p><p>
+             C'&egrave; una possibilit&agrave; ulteriore. C'&egrave; un nuovo metodo sulla classe <tt class="literal">Interceptor</tt> che si chiama
+             <tt class="literal">isUnsaved()</tt> che consente all'applicazione di implementare la propria strategia per
+             distinguere gli oggetti appena istanziati. Ad esempio, potreste definire una classe di base per le vostre
+             classi persistenti.
+         </p><pre class="programlisting">public class Persistent {
+    private boolean _saved = false;
+    public void onSave() {
+        _saved=true;
+    }
+    public void onLoad() {
+        _saved=true;
+    }
+    ......
+    public boolean isSaved() {
+        return _saved;
+    }
+}</pre><p>
+             (La propriet&agrave; <tt class="literal">saved</tt> &egrave; non-persistente.)
+             Ora implementate <tt class="literal">isUnsaved()</tt> insieme a <tt class="literal">onLoad()</tt>
+             e <tt class="literal">onSave()</tt> come segue:
+         </p><pre class="programlisting">public Boolean isUnsaved(Object entity) {
+    if (entity instanceof Persistent) {
+        return new Boolean( !( (Persistent) entity ).isSaved() );
+    }
+    else {
+        return null;
+    }
+}
+
+public boolean onLoad(Object entity, 
+    Serializable id,
+    Object[] state,
+    String[] propertyNames,
+    Type[] types) {
+
+    if (entity instanceof Persistent) ( (Persistent) entity ).onLoad();
+    return false;
+}
+
+public boolean onSave(Object entity,
+    Serializable id,
+    Object[] state,
+    String[] propertyNames,
+    Type[] types) {
+        
+    if (entity instanceof Persistent) ( (Persistent) entity ).onSave();
+    return false;
+}</pre></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="example-parentchild-conclusion"></a>16.5.&nbsp;Conclusione</h2></div></div><div></div></div><p>
+             Ci sono vari concetti da digerire, qui, e potrebbe sembrare confuso, in un primo momento. Comunque, nella pratica
+             funziona tutto molto bene. La maggior parte delle applicazioni basate su Hibernate usando il pattern genitore / figlio
+             in vari posti.
+         </p><p>
+             Abbiamo menzionato un'alternativa nel primo paragrafo. Nessuna delle questioni precedenti esiste nel caso
+             di mappaggi con <tt class="literal">&lt;composite-element&gt;</tt>, che hanno esattamente la semantica di una relazione
+             padre / figlio. Sfortunatamente ci sono due grosse limitazioni per gli elementi composti: non possono avere
+             collezioni, e non dovrebbero essere figli di un'entit&agrave; diversa dal loro genitore unico. (Per quanto,
+             <span class="emphasis"><em>possano</em></span> avere una chiave primaria surrogata usando il mappaggio <tt class="literal">&lt;idbag&gt;</tt>.)
+         </p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="toolsetguide.html">Indietro</a>&nbsp;</td><td width="20%" align="center"><a accesskey="u" href="index.html">Risali</a></td><td width="40%" align="right">&nbsp;<a accesskey="n" href="example-weblog.html">Avanti</a></td></tr><tr><td width="40%" align="left" valign="top">Capitolo&nbsp;15.&nbsp;Guida degli strumenti&nbsp;</td><td width="20%" align="center"><a accesskey="h" href="index.html">Partenza</a></td><td width="40%" align="right" valign="top">&nbsp;Capitolo&nbsp;17.&nbsp;Esempio: una applicazione che realizza un weblog</td></tr></table></div></body></html>

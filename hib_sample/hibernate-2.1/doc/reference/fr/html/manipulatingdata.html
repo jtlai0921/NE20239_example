@@ -1,0 +1,836 @@
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+   <title>Chapitre&nbsp;9.&nbsp;Manipuler les donn&eacute;es persistantes</title><link rel="stylesheet" href="../shared/css/html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.65.1"><link rel="home" href="index.html" title="HIBERNATE - Persistence Relationnelle dans un Java standard"><link rel="up" href="index.html" title="HIBERNATE - Persistence Relationnelle dans un Java standard"><link rel="previous" href="inheritance.html" title="Chapitre&nbsp;8.&nbsp;Mapping de l'h&eacute;ritage de classe"><link rel="next" href="transactions.html" title="Chapitre&nbsp;10.&nbsp;Transactions et acc&egrave;s concurrents"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapitre&nbsp;9.&nbsp;Manipuler les donn&eacute;es persistantes</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="inheritance.html">Pr&eacute;c&eacute;dent</a>&nbsp;</td><th width="60%" align="center">&nbsp;</th><td width="20%" align="right">&nbsp;<a accesskey="n" href="transactions.html">Suivant</a></td></tr></table><hr></div><div class="chapter" lang="fr"><div class="titlepage"><div><div><h2 class="title"><a name="manipulatingdata"></a>Chapitre&nbsp;9.&nbsp;Manipuler les donn&eacute;es persistantes</h2></div></div><div></div></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="manipulatingdata-creating"></a>9.1.&nbsp;Cr&eacute;ation d'un objet persistant</h2></div></div><div></div></div><p>
+            Un objet (une instance entit&eacute;) est <span class="emphasis"><em>transiant</em></span> ou
+            <span class="emphasis"><em>persistant</em></span> pour une <tt class="literal">Session</tt> donn&eacute;e. 
+	    Les objets nouvellement instanci&eacute;s sont bien s&ucirc;r transiants. La session offre 
+        les services de sauvegarde (de persistence) des instances transiantes :
+        </p><pre class="programlisting">DomesticCat fritz = new DomesticCat();
+fritz.setColor(Color.GINGER);
+fritz.setSex('M');
+fritz.setName("Fritz");
+Long generatedId = (Long) sess.save(fritz);</pre><pre class="programlisting">DomesticCat pk = new DomesticCat();
+pk.setColor(Color.TABBY);
+pk.setSex('F');
+pk.setName("PK");
+pk.setKittens( new HashSet() );
+pk.addKitten(fritz);
+sess.save( pk, new Long(1234) );</pre><p>
+            <tt class="literal">save()</tt> avec un seul argument, g&eacute;n&egrave;re et assigne un identifiant
+            unique &agrave; <tt class="literal">fritz</tt>. La m&ecirc;me m&eacute;thode avec deux arguments essaie de persister
+            <tt class="literal">pk</tt> en utilisant l'identifiant donn&eacute;. G&eacute;n&eacute;ralement, nous vous d&eacute;conseillons
+            l'utilisation de la version &agrave; deux arguments puisqu'elle pourrait &ecirc;tre utilis&eacute;e pour cr&eacute;er
+	    des cl&eacute;s primaires avec une signification m&eacute;tier. Elle est plus efficace, dans certaines situations,
+	    comme l'utilisation d'Hibernate pour la persistance d'un Entity Bean BMP. 
+        </p><p>
+            Les objets associ&eacute;s peuvent &ecirc;tre persist&eacute;s dans l'ordre que vous voulez du moment que vous
+            n'avez pas de contrainte <tt class="literal">NOT NULL</tt> sur une cl&eacute; &eacute;trang&egrave;re. 
+            Il n'y a aucun risque de violation de contrainte de cl&eacute; &eacute;trang&egrave;re. Cependant, vous
+            pourriez violer une contrainte <tt class="literal">NOT NULL</tt> si vous invoquiez <tt class="literal">save()</tt>
+	    sur des objets dans le mauvais ordre.
+        </p></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="manipulatingdata-loading"></a>9.2.&nbsp;Chargement d'un objet</h2></div></div><div></div></div><p>
+            La m&eacute;thode <tt class="literal">load()</tt> offerte par la <tt class="literal">Session</tt> vous permet
+            de r&eacute;cup&eacute;rer une instance persistante si vous connaissez son identifiant.
+            Une des versions prend comme argument un objet class et charge l'&eacute;tat dans un objet
+            nouvellement instanci&eacute;. La seconde version permet d'alimenter une instance dans laquelle 
+            l'&eacute;tat sera charg&eacute;. La version qui prend comme argument une instance est 
+            particul&egrave;rement utile si vous pensez utiliser Hibernate avec des Entity Bean BMP,
+            elle est fournie dans ce but. Vous d&eacute;couvrirez d'autres cas o&ugrave; l'utiliser
+            (Pooling d'instance maison, etc.)
+        </p><pre class="programlisting">Cat fritz = (Cat) sess.load(Cat.class, generatedId);</pre><pre class="programlisting">// il est n&eacute;cessaire de transformer les identifiants primitifs
+long pkId = 1234;
+DomesticCat pk = (DomesticCat) sess.load( Cat.class, new Long(pkId) );</pre><pre class="programlisting">Cat cat = new DomesticCat();
+// charge l'&eacute;tat de pk dans cat
+sess.load( cat, new Long(pkId) );
+Set kittens = cat.getKittens();</pre><p>
+            Il est &agrave; noter que <tt class="literal">load()</tt> l&egrave;vera une exception irr&eacute;versible 
+            s'il ne trouve pas d'enregistrement correspondant en base donn&eacute;es. 
+            Si la classe est mapp&eacute;e avec un proxy, <tt class="literal">load()</tt> retourne un 
+            objet qui est un proxy non initialis&eacute; et n'interrogera la base de donn&eacute;es 
+            qu'&agrave; la premi&egrave;re invocation d'une m&eacute;thode de l'objet. Ce comportement est tr&egrave;s 
+            utile si vous voulez cr&eacute;er une association vers un objet sans r&eacute;ellement 
+            le charger depuis la base de donn&eacute;es. 
+        </p><p>
+            Si vous n'&ecirc;tes par certain que l'enregistrement correspondant existe, vous 
+            devriez utiliser la m&eacute;thode <tt class="literal">get()</tt>, qui interroge 
+            imm&eacute;diatement la base de donn&eacute;es et retourne null s'il n'y a aucun
+	    enregistrement correspondant. 
+        </p><pre class="programlisting">Cat cat = (Cat) sess.get(Cat.class, id);
+if (cat==null) {
+    cat = new Cat();
+    sess.save(cat, id);
+}
+return cat;</pre><p>
+            Vous pouvez aussi charger un objet en utilisant un ordre SQL de type
+        <tt class="literal">SELECT ... FOR UPDATE</tt>. R&eacute;f&eacute;rez vous &agrave; la section suivante 
+        pour une pr&eacute;sentation des <tt class="literal">LockMode</tt>s d'Hibernate. 
+        </p><pre class="programlisting">Cat cat = (Cat) sess.get(Cat.class, id, LockMode.UPGRADE);</pre><p>
+            Notez que les instances associ&eacute;es ou collections contenues ne sont 
+        <span class="emphasis"><em>pas</em></span> selectionn&eacute;es en utilisant "<tt class="literal">FOR UPDATE</tt>". 
+        </p><p>
+            Il est possible de recharger un objet et toutes ses collections &agrave; n'importe 
+            quel moment en utilisant la m&eacute;thode <tt class="literal">refresh()</tt>. 
+            Ceci est utile quand les triggers d'une base de donn&eacute;es sont utilis&eacute;s
+            pour initialiser certaines propri&eacute;t&eacute;s de l'objet. 
+        </p><pre class="programlisting">sess.save(cat);
+sess.flush(); //force l'ordre SQL INSERT
+sess.refresh(cat); //recharge l'&eacute;tat (apr&egrave;s ex&eacute;cution des triggers)</pre></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="manipulatingdata-querying"></a>9.3.&nbsp;Requ&ecirc;tage</h2></div></div><div></div></div><p>
+            Si vous ne connaissez pas le(s) identifiant(s) de l'objet (ou des objets) 
+            que vous recherchez, utlisez la m&eacute;thode <tt class="literal">find()</tt> 
+            offerte par la <tt class="literal">Session</tt>. Hibernate s'appuie sur
+	    un langage d'interrogation, orient&eacute; objet, simple mais puissant. 
+        </p><pre class="programlisting">List cats = sess.find(
+    "from Cat as cat where cat.birthdate = ?",
+    date,
+    Hibernate.DATE
+);
+
+List mates = sess.find(
+    "select mate from Cat as cat join cat.mate as mate " +
+    "where cat.name = ?",
+    name,
+    Hibernate.STRING
+);
+
+List cats = sess.find( "from Cat as cat where cat.mate.bithdate is null" );
+
+List moreCats = sess.find(
+    "from Cat as cat where " + 
+    "cat.name = 'Fritz' or cat.id = ? or cat.id = ?",
+    new Object[] { id1, id2 },
+    new Type[] { Hibernate.LONG, Hibernate.LONG }
+);
+
+List mates = sess.find(
+    "from Cat as cat where cat.mate = ?",
+    izi,
+    Hibernate.entity(Cat.class)
+);
+
+List problems = sess.find(
+    "from GoldFish as fish " +
+    "where fish.birthday &gt; fish.deceased or fish.birthday is null"
+);</pre><p>
+            Le second argument de <tt class="literal">find()</tt> est un objet ou un tableau d'objets. 
+	    Le troisi&egrave;me argument est un type Hibernate ou un tableau de types Hibernate. 
+	    Ces types pass&eacute;s en argument sont utilis&eacute;s pour lier les objets pass&eacute;s en argument au
+        <tt class="literal">?</tt> de la requ&ecirc;te (ce qui correspond aux IN parameters d'un 
+        <tt class="literal">PreparedStatement</tt> JDBC). Comme en JDBC, il est pr&eacute;f&eacute;rable
+        d'utiliser ce m&eacute;canisme de liaison (binding) plut&ocirc;t que la
+	    manipulation de cha&icirc;ne de caract&egrave;res. 
+        </p><p>
+            La classe <tt class="literal">Hibernate</tt> d&eacute;finit un certain nombre de m&eacute;thodes statiques
+            et de constantes, proposant l'acc&egrave;s &agrave; la plupart des types utilis&eacute;s, comme les instances
+            de <tt class="literal">net.sf.hibernate.type.Type</tt>. 
+        </p><p>
+            Si vous pensez que votre requ&ecirc;te retournera un tr&egrave;s grand nombre d'objets, mais que vous
+            n'avez pas l'intention de tous les utliser, vous pourriez am&eacute;liorer les performances en
+            utilisant la m&eacute;thode <tt class="literal">iterate()</tt>, qui retourne un 
+            <tt class="literal">java.util.Iterator</tt>. L'it&eacute;rateur chargera les objets 
+            &agrave; la demande en utilisant les identifiants retoun&eacute;s par la requ&ecirc;te SQL 
+	    initiale (ce qui fait un total de n+1 selects). 
+        </p><pre class="programlisting">// it&eacute;ration sur les ids
+Iterator iter = sess.iterate("from eg.Qux q order by q.likeliness"); 
+while ( iter.hasNext() ) {
+    Qux qux = (Qux) iter.next();  // r&eacute;cup&eacute;ration de l'objet
+    // condition non d&eacute;finissable dans la requ&ecirc;te
+    if ( qux.calculateComplicatedAlgorithm() ) {
+        // effacez l'instance en cours
+        iter.remove();
+        // n'est plus n&eacute;cessaire pour faire le reste du process
+        break;
+    }
+}</pre><p>
+            Malheureusement, <tt class="literal">java.util.Iterator</tt> ne d&eacute;clare aucune exception,
+            donc les exceptions SQL ou Hibernate qui seront soulev&eacute;es seront transform&eacute;es
+            en <tt class="literal">LazyInitializationException</tt> 
+            (une classe fille de <tt class="literal">RuntimeException</tt>).
+        </p><p>
+            La m&eacute;thode <tt class="literal">iterate()</tt> est &eacute;galement plus performante si
+            vous pr&eacute;voyez que beaucoup d'objets soient d&eacute;j&agrave; charg&eacute;s et donc disponibles via 
+            la session, ou si le r&eacute;sultat de la requ&ecirc;te retourne tr&egrave;s souvent les m&ecirc;mes objets 
+	    (quand les donn&eacute;es ne sont pas en cache et ne sont pas dupliqu&eacute;s dans le r&eacute;sultat, 
+        <tt class="literal">find()</tt> est presque toujours plus rapide). Voici un exemple de 
+        requ&ecirc;te qui devrait &ecirc;tre appel&eacute;e via la m&eacute;thode <tt class="literal">iterate()</tt> :
+        </p><pre class="programlisting">
+Iterator iter = sess.iterate(
+    "select customer, product " + 
+    "from Customer customer, " +
+    "Product product " +
+    "join customer.purchases purchase " +
+    "where product = purchase.product"
+);</pre><p>
+            Invoquer la requ&ecirc;te pr&eacute;c&eacute;dente avec <tt class="literal">find()</tt> retournerait un 
+            <tt class="literal">ResultSet</tt> JDBC tr&egrave;s volumineux et contenant plusieurs
+            fois les m&ecirc;mes donn&eacute;es.
+        </p><p>
+            Les requ&ecirc;tes Hibernate retournent parfois des tuples d'objets, 
+            dans ce cas chaque tuple est retourn&eacute; sous forme de tableau (d'objets) :
+        </p><pre class="programlisting">Iterator foosAndBars = sess.iterate(
+    "select foo, bar from Foo foo, Bar bar " +
+    "where bar.date = foo.date"
+);
+while ( foosAndBars.hasNext() ) {
+    Object[] tuple = (Object[]) foosAndBars.next();
+    Foo foo = (Foo) tuple[0]; Bar bar = (Bar) tuple[1];
+    ....
+}</pre><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="manipulatingdata-scalarqueries"></a>9.3.1.&nbsp;Requ&ecirc;tes scalaires</h3></div></div><div></div></div><p>
+                Les requ&ecirc;tes peuvent sp&eacute;cifier une propri&eacute;t&eacute; d'une classe dans la clause <tt class="literal">select</tt>.
+                Elles peuvent m&ecirc;me appeler les fonctions SQL d'aggr&eacute;gation. Ces propri&eacute;t&eacute;s ou aggr&eacute;gations sont consid&eacute;r&eacute;es
+                comme des r&eacute;sultats "scalaires".
+            </p><pre class="programlisting">Iterator results = sess.iterate(
+        "select cat.color, min(cat.birthdate), count(cat) from Cat cat " +
+        "group by cat.color"
+);
+while ( results.hasNext() ) {
+    Object[] row = results.next();
+    Color type = (Color) row[0];
+    Date oldest = (Date) row[1];
+    Integer count = (Integer) row[2];
+    .....
+}</pre><pre class="programlisting">Iterator iter = sess.iterate(
+    "select cat.type, cat.birthdate, cat.name from DomesticCat cat"
+);</pre><pre class="programlisting">List list = sess.find(
+    "select cat, cat.mate.name from DomesticCat cat"
+);</pre></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="manipulatingdata-queryinterface"></a>9.3.2.&nbsp;L'interface de requ&ecirc;tage Query</h3></div></div><div></div></div><p>
+                Si vous avez besoin de d&eacute;finir des limites sur le r&eacute;sultat d'une requ&ecirc;te (nombre 
+		maximum d'enregistrements et / ou l'indice du premier r&eacute;sultat que vous souhaitez 
+		r&eacute;cup&eacute;rer), utilisez une instance de <tt class="literal">net.sf.hibernate.Query</tt> :
+            </p><pre class="programlisting">Query q = sess.createQuery("from DomesticCat cat");
+q.setFirstResult(20);
+q.setMaxResults(10);
+List cats = q.list();</pre><p>
+                Vous pouvez m&ecirc;me d&eacute;finir une requ&ecirc;te nomm&eacute;e dans le document de mapping. 
+                N'oubliez pas qu'il faut utiliser une section <tt class="literal">CDATA</tt> 
+                si votre requ&ecirc;te contient des caract&egrave;res qui pourraient &ecirc;tre interpr&eacute;t&eacute;s 
+                comme un marqueur XML.
+            </p><pre class="programlisting">&lt;query name="eg.DomesticCat.by.name.and.minimum.weight"&gt;&lt;![CDATA[
+    from eg.DomesticCat as cat
+        where cat.name = ?
+        and cat.weight &gt; ?
+] ]&gt;&lt;/query&gt;</pre><pre class="programlisting">Query q = sess.getNamedQuery("eg.DomesticCat.by.name.and.minimum.weight");
+q.setString(0, name);
+q.setInt(1, minWeight);
+List cats = q.list();</pre><p>
+        L'interface d'interrogation supporte l'utilisation de param&egrave;tres nomm&eacute;s. Les param&egrave;tres nomm&eacute;s
+        sont des variables de la forme <tt class="literal">:name</tt> que l'on peut retrouver dans la requ&ecirc;te.
+        <tt class="literal">Query</tt> dispose de m&eacute;thodes pour lier des valeurs &agrave; ces param&egrave;tres nomm&eacute;s ou
+		aux param&egrave;tres <tt class="literal">?</tt> du style JDBC. <span class="emphasis"><em>Contrairement &agrave; JDBC, 
+        l'indice des param&egrave;tres Hibernate d&eacute;marre de z&eacute;ro.</em></span> 
+		Les avantages des param&egrave;tres nomm&eacute;s sont :
+            </p><div class="itemizedlist"><ul type="disc" compact><li><p>
+                        les param&egrave;tres nomm&eacute;s sont ind&eacute;pendants de l'ordre dans lequel 
+                        ils apparaissent dans la requ&ecirc;te
+                    </p></li><li><p>
+                        ils peuvent &ecirc;tre pr&eacute;sents plusieurs fois dans une m&ecirc;me requ&ecirc;te
+                    </p></li><li><p>
+                        ils sont auto-document&eacute;s (par leur nom)
+                    </p></li></ul></div><pre class="programlisting">//param&egrave;tre nomm&eacute; (pr&eacute;f&eacute;r&eacute;)
+Query q = sess.createQuery("from DomesticCat cat where cat.name = :name");
+q.setString("name", "Fritz");
+Iterator cats = q.iterate();</pre><pre class="programlisting">//param&egrave;tre positionn&eacute;
+Query q = sess.createQuery("from DomesticCat cat where cat.name = ?");
+q.setString(0, "Izi");
+Iterator cats = q.iterate();</pre><pre class="programlisting">//param&egrave;tre nomm&eacute; liste
+List names = new ArrayList();
+names.add("Izi");
+names.add("Fritz");
+Query q = sess.createQuery("from DomesticCat cat where cat.name in (:namesList)");
+q.setParameterList("namesList", names);
+List cats = q.list();</pre></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="manipulatingdata-scrolling"></a>9.3.3.&nbsp;Iteration scrollable</h3></div></div><div></div></div><p>
+                Si votre driver JDBC supporte les <tt class="literal">ResultSet</tt>s scrollables, l'interface 
+		<tt class="literal">Query</tt> peut &ecirc;tre utilis&eacute;e pour obtenir des <tt class="literal">ScrollableResults</tt> 
+        qui permettent une navigation plus flexible sur les r&eacute;sultats.
+            </p><pre class="programlisting">Query q = sess.createQuery("select cat.name, cat from DomesticCat cat " +
+                            "order by cat.name");
+ScrollableResults cats = q.scroll();
+if ( cats.first() ) {
+
+    // cherche le premier 'name' de chaque page pour une liste de 'cats' tri&eacute;e par 'name'
+    firstNamesOfPages = new ArrayList();
+    do {
+        String name = cats.getString(0);
+        firstNamesOfPages.add(name);
+    }
+    while ( cats.scroll(PAGE_SIZE) );
+
+    // Retourne la premi&egrave;re page de 'cats'
+    pageOfCats = new ArrayList();
+    cats.beforeFirst();
+    int i=0;
+    while( ( PAGE_SIZE &gt; i++ ) &amp;&amp; cats.next() ) pageOfCats.add( cats.get(1) );
+
+}</pre><p>
+                Le comportement de <tt class="literal">scroll()</tt> est similaire &agrave; celui d'<tt class="literal">iterate()</tt>, 
+                &agrave; la diff&eacute;rence pr&egrave;s que les objets peuvent &ecirc;tre initialis&eacute;s de mani&egrave;re s&eacute;lective 
+                avec <tt class="literal">get(int)</tt>, au lieu d'une initialisation compl&egrave;te d'une ligne
+                de resultset.
+            </p></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="manipulatingdata-filtering"></a>9.3.4.&nbsp;Filtrer les collections</h3></div></div><div></div></div><p>
+                Un filtre (<span class="emphasis"><em>filter</em></span>) de collection est un type 
+                sp&eacute;cial de requ&ecirc;te qui peut &ecirc;tre appliqu&eacute; &agrave; une collection ou un 
+                tableau persistant. La requ&ecirc;te peut faire r&eacute;f&eacute;rence &agrave; <tt class="literal">this</tt>,
+                ce qui signifie "l'&eacute;l&eacute;ment de la collection courante".
+            </p><pre class="programlisting">Collection blackKittens = session.filter(
+    pk.getKittens(), "where this.color = ?", Color.BLACK, Hibernate.enum(Color.class)
+);</pre><p>
+                La collection retourn&eacute;e est consid&eacute;r&eacute;e comme un bag.
+            </p><p>
+                Remarquez que les filtres n'ont pas besoin de clause <tt class="literal">from</tt> 
+                (bien qu'ils puissent en avoir une si n&eacute;cessaire). Les filtres ne sont pas 
+                limit&eacute;s &agrave; retourner des &eacute;l&eacute;ments de la collection qu'ils filtrent.
+            </p><pre class="programlisting">Collection blackKittenMates = session.filter(
+    pk.getKittens(), "select this.mate where this.color = eg.Color.BLACK"
+);</pre></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="manipulatingdata-criteria"></a>9.3.5.&nbsp;Les requ&ecirc;tes par crit&egrave;res</h3></div></div><div></div></div><p>
+                HQL est extr&ecirc;mement puissant mais certaines personnnes pr&eacute;f&egrave;reront 
+                construire leurs requ&ecirc;tes dynamiquement, en utilisant une API orient&eacute;e 
+                objet, plut&ocirc;t qu'une cha&icirc;ne de caract&egrave;res dans leur code JAVA. 
+                Pour ces personnes, Hibernate fournit <tt class="literal">Criteria</tt> : 
+                une API d'interrogation intuitive.
+            </p><pre class="programlisting">Criteria crit = session.createCriteria(Cat.class);
+crit.add( Expression.eq("color", eg.Color.BLACK) );
+crit.setMaxResults(10);
+List cats = crit.list();</pre><p>
+                Si vous n'&ecirc;tes pas &agrave; l'aise avec les syntaxes type SQL, 
+                c'est peut &ecirc;tre la mani&egrave;re la plus simple de commencer
+		avec Hibernate. Cette API est aussi plus extensible que le HQL. 
+        Les applications peuvent s'appuyer sur leur propre impl&eacute;mentation de 
+        l'interface <tt class="literal">Criterion</tt>.
+            </p></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="manipulatingdata-nativesql"></a>9.3.6.&nbsp;Requ&ecirc;tes en SQL natif</h3></div></div><div></div></div><p>
+                Vous pouvez construire votre requ&ecirc;te en SQL, en utilisant 
+                <tt class="literal">createSQLQuery()</tt>. Il est n&eacute;cessaire
+                de placer vos alias SQL entre accolades.
+            </p><pre class="programlisting">List cats = session.createSQLQuery(
+    "SELECT {cat.*} FROM CAT AS {cat} WHERE ROWNUM&lt;10", 
+    "cat",
+    Cat.class
+).list();</pre><pre class="programlisting">List cats = session.createSQLQuery(
+    "SELECT {cat}.ID AS {cat.id}, {cat}.SEX AS {cat.sex}, " +
+           "{cat}.MATE AS {cat.mate}, {cat}.SUBCLASS AS {cat.class}, ... " +
+    "FROM CAT AS {cat} WHERE ROWNUM&lt;10", 
+    "cat",
+    Cat.class
+).list()</pre><p>
+                Les requ&ecirc;tes SQL peuvent contenir des param&egrave;tres nomm&eacute;s et positionn&eacute;s, comme dans
+		les requ&ecirc;tes Hibernate.
+            </p></div></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="manipulatingdata-updating"></a>9.4.&nbsp;Mise &agrave; jour des objets</h2></div></div><div></div></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="manipulatingdata-updating-insession"></a>9.4.1.&nbsp;Mise &agrave; jour dans la m&ecirc;me session</h3></div></div><div></div></div><p>
+                <span class="emphasis"><em>Les instances transactionnelles persistantes</em></span> (objets charg&eacute;s, sauvegard&eacute;s, cr&eacute;&eacute;s ou
+                r&eacute;sultats d'une recherche par la <tt class="literal">Session</tt>) peuvent &ecirc;tre manipul&eacute;es par l'application.
+		Toute modification sur un &eacute;tat persistant sera sauvegard&eacute;e (persist&eacute;e) quand la <tt class="literal">Session</tt> 
+        sera <span class="emphasis"><em>flush&eacute;e</em></span>
+                (ceci sera d&eacute;crit plus tard dans ce chapitre). Le moyen le plus simple
+                de modifier l'&eacute;tat d'un objet est donc de le charger (<tt class="literal">load()</tt>), 
+                et de le manipuler pendant que la <tt class="literal">Session</tt> est ouverte :
+            </p><pre class="programlisting">DomesticCat cat = (DomesticCat) sess.load( Cat.class, new Long(69) );
+cat.setName("PK");
+sess.flush();  // les modifications de 'cat' sont automatiquement d&eacute;tect&eacute;es et sauvegard&eacute;es</pre><p>
+                Il arrive que cette approche ne convienne pas puisqu'elle n&eacute;cessite une m&ecirc;me session
+		pour ex&eacute;cuter les deux ordres SQL <tt class="literal">SELECT</tt> (pour charger l'objet) et <tt class="literal">UPDATE</tt>
+		(pour sauvegarder son &eacute;tat mis &agrave; jour) dans la m&ecirc;me session. Hibernate propose une m&eacute;thode alternative.
+            </p></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="manipulatingdata-updating-detached"></a>9.4.2.&nbsp;Mise &agrave; jour d'objets d&eacute;tach&eacute;s</h3></div></div><div></div></div><p>
+                Certaines applications ont besoin de r&eacute;cup&eacute;rer un objet dans une transaction, de le passer
+		ensuite &agrave; la couche de pr&eacute;sentation pour modification, et enfin de le sauvegarder dans
+		une nouvelle transaction (les applications suivant cette approche se trouvent dans un
+		contexte d'acc&egrave;s aux donn&eacute;es hautement concurrent, elles utilisent g&eacute;n&eacute;ralement des
+		donn&eacute;es versionn&eacute;es pour assurer l'isolation des transactions). Cette approche
+        n&eacute;cessite un mod&egrave;le de d&eacute;veloppement l&eacute;g&egrave;rement diff&eacute;rent de celui d&eacute;crit dans la 
+		section pr&eacute;cedente. Hibernate supporte ce mod&egrave;le en proposant la m&eacute;thode 
+        <tt class="literal">Session.update()</tt>.
+            </p><pre class="programlisting">// dans la premi&egrave;re session
+Cat cat = (Cat) firstSession.load(Cat.class, catId);
+Cat potentialMate = new Cat();
+firstSession.save(potentialMate);
+
+// dans une couche sup&eacute;rieure de l'application
+cat.setMate(potentialMate);
+
+// plus tard, dans une nouvelle session
+secondSession.update(cat);  // mise &agrave; jour de 'cat'
+secondSession.update(mate); // mise &agrave; jour de  'mate'</pre><p>
+                Si <tt class="literal">Cat</tt> avec l'identifiant <tt class="literal">catId</tt> avait 
+                d&eacute;ja &eacute;t&eacute; charg&eacute; par <tt class="literal">secondSession</tt> au moment o&ugrave; 
+                l'application essaie de le mettre &agrave; jour, une exception aurait &eacute;t&eacute; soulev&eacute;e.
+            </p><p>
+                L'application devrait unitairement mettre &agrave; jour (<tt class="literal">update()</tt>) les instances 
+                transiantes	accessibles depuis l'instance transiante donn&eacute;e si et 
+                <span class="emphasis"><em>seulement</em></span> si elle souhaite que leur &eacute;tat 
+                soit aussi mis &agrave; jour (A l'exception des objets engag&eacute;s dans un cycle de vie
+                dont nous parlerons	plus tard).
+            </p><p>
+                Les utilisateurs d'Hibernate ont &eacute;mis le souhait de pouvoir soit sauvegarder une
+		instance transiante en g&eacute;n&eacute;rant un nouvel identifiant, soit mettre &agrave; jour son &eacute;tat
+		en utilisant son identifiant courant. La m&eacute;thode <tt class="literal">saveOrUpdate()</tt>
+                impl&eacute;mente cette fonctionnalit&eacute;.
+            </p><p>
+                Hibernate distingue les "nouvelles" (non sauvegard&eacute;es) instances, des instances
+		existantes (sauvegard&eacute;es ou charg&eacute;es dans une session pr&eacute;c&eacute;dente) gr&acirc;ce &agrave; la valeur
+		de leur propri&eacute;t&eacute; d'identifiant (ou de version, ou de timestamp). 
+        L'attribut <tt class="literal">unsaved-value</tt> du mapping <tt class="literal">&lt;id&gt;</tt> 
+        (ou <tt class="literal">&lt;version&gt;</tt>, ou <tt class="literal">&lt;timestamp&gt;</tt>) 
+        sp&eacute;cifie quelle valeur doit &ecirc;tre interpr&eacute;t&eacute;e comme repr&eacute;sentant une "nouvelle" instance.
+            </p><pre class="programlisting">&lt;id name="id" type="long" column="uid" unsaved-value="null"&gt;
+    &lt;generator class="hilo"/&gt;
+&lt;/id&gt;</pre><p>
+                Les valeurs permises pour <tt class="literal">unsaved-value</tt> sont :
+            </p><div class="itemizedlist"><ul type="disc" compact><li><p>
+                    <tt class="literal">any</tt> - toujours sauvegarder (save)
+                    </p></li><li><p>
+                    <tt class="literal">none</tt> - toujours mettre &agrave; jour (update)
+                    </p></li><li><p>
+                    <tt class="literal">null</tt> - sauvegarder (save) quand l'identifiant est 
+		    nul (valeur par d&eacute;faut)
+                    </p></li><li><p>
+                    une valeur valide pour l'identifiant - sauvegarder (save) quand 
+		    l'identifiant est nul ou &eacute;gal &agrave; cette valeur
+                    </p></li><li><p>
+                    <tt class="literal">undefined</tt> - par d&eacute;faut pour <tt class="literal">version</tt> ou
+                        <tt class="literal">timestamp</tt>, le contr&ocirc;le sur l'identifiant est alors utilis&eacute;
+                    </p></li></ul></div><pre class="programlisting">// dans la premi&egrave;re session
+Cat cat = (Cat) firstSession.load(Cat.class, catID);
+
+// dans une couche sup&eacute;rieure de l'application
+Cat mate = new Cat();
+cat.setMate(mate);
+
+// plus tard, dans une nouvelle session
+secondSession.saveOrUpdate(cat);   // mise &agrave; jour de l'&eacute;tat existant (cat a un id non null)
+secondSession.saveOrUpdate(mate);  // sauvegarde d'une nouvelle instance (mate a un id null)</pre><p>
+                L'utilisation et la s&eacute;mantique de <tt class="literal">saveOrUpdate()</tt> semble 
+                confuse pour les nouveaux utilisateurs. Tout d'abord, tant que vous n'essayez 
+                pas d'utiliser une instance d'une session dans une autre session, 
+                il est inutile d'utiliser <tt class="literal">update()</tt> ou
+                <tt class="literal">saveOrUpdate()</tt>. De pan entiers d'applications 
+                n'utiliseront aucune de ces deux m&eacute;thodes.
+            </p><p>
+                G&eacute;n&eacute;ralement <tt class="literal">update()</tt> ou <tt class="literal">saveOrUpdate()</tt> 
+                sont utilis&eacute;s dans les sc&eacute;narii suivant:
+            </p><div class="itemizedlist"><ul type="disc" compact><li><p>
+                        l'application charge un objet dans une premi&egrave;re session
+                    </p></li><li><p>
+                        l'objet est pass&eacute; &agrave; la couche UI
+                    </p></li><li><p>
+                        l'objet subit quelques modificatons
+                    </p></li><li><p>
+                        l'objet redescend vers la couche m&eacute;tier
+                    </p></li><li><p>
+                        l'application persiste ces modifications en appelant
+                        <tt class="literal">update()</tt> dans une seconde session
+                    </p></li></ul></div><p>
+                <tt class="literal">saveOrUpdate()</tt> r&eacute;alise ce qui suit :
+            </p><div class="itemizedlist"><ul type="disc" compact><li><p>
+                        si l'objet est d&eacute;j&agrave; persistant dans la session en cours, ne fait rien
+                    </p></li><li><p>
+                        si l'objet n'a pas d'identifiant, elle le <tt class="literal">save()</tt>
+                    </p></li><li><p>
+                        si l'identifiant de l'objet corresponds au crit&egrave;re d&eacute;fini par
+                        <tt class="literal">unsaved-value</tt>, elle le <tt class="literal">save()</tt>
+                    </p></li><li><p>
+                        si l'objet est versionn&eacute; (<tt class="literal">version</tt> ou
+                        <tt class="literal">timestamp</tt>), alors la version est v&eacute;rifi&eacute;e en
+			priorit&eacute; sur l'identifiant, sauf si <tt class="literal">unsaved-value="undefined"</tt> 
+            (valeur par d&eacute;faut) est utilis&eacute; pour la version
+                    </p></li><li><p>
+                        si un autre objet associ&eacute; &agrave; la session a le m&ecirc;me identifiant, 
+			une exception est soulev&eacute;e
+                    </p></li></ul></div></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="manipulatingdata-update-lock"></a>9.4.3.&nbsp;R&eacute;associer des objets d&eacute;tach&eacute;s</h3></div></div><div></div></div><p>
+                La m&eacute;thode <tt class="literal">lock()</tt> permet &agrave; l'application de r&eacute;associer
+                un objet non modifi&eacute; avec une nouvelle session.
+            </p><pre class="programlisting">//simple r&eacute;association :
+sess.lock(fritz, LockMode.NONE);
+//v&eacute;rifie la version, puis r&eacute; associe :
+sess.lock(izi, LockMode.READ);
+//v&eacute;rifie la version en utilisant SELECT ... FOR UPDATE, puis r&eacute;associe :
+sess.lock(pk, LockMode.UPGRADE);</pre></div></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="manipulatingdata-deleting"></a>9.5.&nbsp;Suppression d'objets persistants</h2></div></div><div></div></div><p>
+            <tt class="literal">Session.delete()</tt> supprimera l'&eacute;tat d'un objet de la base de donn&eacute;es. 
+            Evidemment, votre application peut toujours contenir une r&eacute;f&eacute;rence &agrave; cet objet.
+	    La meilleure fa&ccedil;on de l'apr&eacute;hender est donc de se dire que <tt class="literal">delete()</tt> 
+	    transforme une instance persistante en instance transiante.
+        </p><pre class="programlisting">sess.delete(cat);</pre><p>
+            Vous pouvez aussi effacer plusieurs objets en passant une requ&ecirc;te Hibernante
+	    &agrave; la m&eacute;thode <tt class="literal">delete()</tt>.
+        </p><p>
+            Vous pouvez supprimer les objets dans l'ordre que vous souhaitez, sans risque de
+	    violer une contrainte de cl&eacute; &eacute;trang&egrave;re. Cependant, vous pourriez violer une contrainte 
+	    <tt class="literal">NOT NULL</tt> si vous invoquiez <tt class="literal">delete()</tt> sur des objets 
+        dans le mauvais ordre. 
+	</p></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="manipulatingdata-flushing"></a>9.6.&nbsp;Flush</h2></div></div><div></div></div><p>
+            La <tt class="literal">Session</tt> ex&eacute;cute parfois les ordres SQL n&eacute;cessaires pour
+	    synchroniser l'&eacute;tat de la connexion JDBC avec l'&eacute;tat des objets contenus en m&eacute;moire.
+	    Ce processus, <span class="emphasis"><em>flush</em></span>, se d&eacute;clenche :
+        </p><div class="itemizedlist"><ul type="disc" compact><li><p>
+                    &agrave; certaines invocations de <tt class="literal">find()</tt> ou d'<tt class="literal">iterate()</tt>
+                </p></li><li><p>
+                    &agrave; l'appel de <tt class="literal">net.sf.hibernate.Transaction.commit()</tt>
+                </p></li><li><p>
+                    &agrave; l'appel de <tt class="literal">Session.flush()</tt>
+                </p></li></ul></div><p>
+            Les ordres SQL sont ex&eacute;cut&eacute;s dans cet ordre :
+        </p><div class="orderedlist"><ol type="1" compact><li><p>
+                    toutes les insertions d'entit&eacute;s, dans le m&ecirc;me ordre que celui 
+		    utilis&eacute; pour la sauvegarde (<tt class="literal">Session.save()</tt>) 
+		    des objets correpsondants
+                </p></li><li><p>
+                    toutes les mises &agrave; jour d'entit&eacute;s
+                </p></li><li><p>
+                    toutes les suppressions de collection
+                </p></li><li><p>
+                    toutes les suppressions, insertions, mises &agrave; jour d'&eacute;l&eacute;ments 
+		    de collection
+                </p></li><li><p>
+                    toutes les insertions de collection
+                </p></li><li><p>
+                    toutes les suppressions d'entit&eacute;s, dans le m&ecirc;me ordre que celui 
+		    utilis&eacute; pour la suppression (<tt class="literal">Session.delete()</tt>) 
+		    des objets correpsondants
+                </p></li></ol></div><p>
+            (Une exception existe pour les objets utilisant les g&eacute;n&eacute;rations d'ID <tt class="literal">native</tt>
+	    puisqu'ils sont ins&eacute;r&eacute;s quand ils sont sauvegard&eacute;s).
+        </p><p>
+            A moins d'appeler explicitement <tt class="literal">flush()</tt>, il n'y a aucune garantie
+	    sur le moment <span class="emphasis"><em>o&ugrave;</em></span> la <tt class="literal">Session</tt> ex&eacute;cute les appels JDBC,
+	    seul l'<span class="emphasis"><em>ordre</em></span> dans lequel ils sont appel&eacute;s est garanti.
+            
+	    Cependant, Hibernate garantit que les m&eacute;thodes <tt class="literal">Session.find(..)</tt>
+            ne retourneront jamais de donn&eacute;es p&eacute;rim&eacute;es ; ni de donn&eacute;es &eacute;rron&eacute;es.
+        </p><p>
+            Il est possible de changer les comportements par d&eacute;faut pour que le flush s'ex&eacute;cute
+	    moins fr&eacute;quement. La classe <tt class="literal">FlushMode</tt> d&eacute;finit trois modeds diff&eacute;rents.
+	    Ceci est utile pour des transactions en lecture seule o&ugrave; il peut &ecirc;tre utlis&eacute; pour accro&icirc;tre 
+	    (tr&egrave;s) l&eacute;g&egrave;rement les performances.
+        </p><pre class="programlisting">sess = sf.openSession();
+Transaction tx = sess.beginTransaction();
+sess.setFlushMode(FlushMode.COMMIT); //autorise les requ&ecirc;tes &agrave; retourner des donn&eacute;es corrompues
+Cat izi = (Cat) sess.load(Cat.class, id);
+izi.setName(iznizi);
+// ex&eacute;cute quelques requ&ecirc;tes....
+sess.find("from Cat as cat left outer join cat.kittens kitten");
+//les modifications de 'izi' ne sont sont pas flush&eacute;es!
+...
+tx.commit(); //flush s'ex&eacute;cute</pre></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="manipulatingdata-endingsession"></a>9.7.&nbsp;Terminer une Session</h2></div></div><div></div></div><p>
+            La fin d'une session implique quatre phases :
+        </p><div class="itemizedlist"><ul type="disc" compact><li><p>
+                    flush de la session
+                </p></li><li><p>
+                    commit de la transaction
+                </p></li><li><p>
+                    fermeture de la session
+                </p></li><li><p>
+                    traitement des exceptions
+                </p></li></ul></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="manipulatingdata-endingsession-flushing"></a>9.7.1.&nbsp;Flusher la Session</h3></div></div><div></div></div><p>
+                Si vous utilisez l'API <tt class="literal">Transaction</tt>, vous n'avez pas &agrave; vous soucier de cette
+		&eacute;tape. Elle sera automatiquement r&eacute;alis&eacute;e &agrave; l'appel du commit de la transaction.
+		Autrement, vous devez invoquer <tt class="literal">Session.flush()</tt> pour vous assurer que les changements
+		sont synchronis&eacute;s avec la base de donn&eacute;es.
+            </p></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="manipulatingdata-endingsession-commit"></a>9.7.2.&nbsp;Commit de la transaction de la base de donn&eacute;es</h3></div></div><div></div></div><p>
+                Si vous utilisez l'API <tt class="literal">Transaction</tt> d'Hibernate, cela donne :
+            </p><pre class="programlisting">tx.commit(); // flush la Session et commit la transaction</pre><p>
+                Si vous g&eacute;rez vous-m&ecirc;me les transactions JDBC, vous devez manuellement appeler la m&eacute;thode
+                <tt class="literal">commit()</tt> de la connexion JDBC.
+            </p><pre class="programlisting">sess.flush();
+sess.connection().commit();  // pas n&eacute;cessaire pour une datasource JTA</pre><p>
+                Si vous d&eacute;cidez de ne <span class="emphasis"><em>pas</em></span> committer vos modifications :
+            </p><pre class="programlisting">tx.rollback();  // rollback la transaction</pre><p>
+                ou :
+            </p><pre class="programlisting">// pas n&eacute;cessaire pour une datasource JTA mais important dans le cas contraire 
+sess.connection().rollback();</pre><p>
+                Si vous faites un rollback d'une transaction vous devriez imm&eacute;diatement la fermer et
+                arr&ecirc;ter d'utiliser la session courante, ceci pour assurer l'int&eacute;grit&eacute; de l'&eacute;tat 
+                interne d'Hibernate.
+            </p></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="manipulatingdata-endingsession-close"></a>9.7.3.&nbsp;Fermeture de la Session</h3></div></div><div></div></div><p>
+                Un appel de <tt class="literal">Session.close()</tt> marque la fin d'une session. La cons&eacute;quence 
+		principale de <tt class="literal">close()</tt> est que la connexion JDBC est relach&eacute;e par la session.
+            </p><pre class="programlisting">tx.commit();
+sess.close();</pre><pre class="programlisting">sess.flush();
+sess.connection().commit();  // pas n&eacute;cessaire pour une datasource JTA
+sess.close();</pre><p>
+                Si vous g&eacute;rez vous m&ecirc;me votre connexion, <tt class="literal">close()</tt> retourne une r&eacute;f&eacute;rence 
+                &agrave; cette connexion, vous pouvez ainsi la fermer manuellement ou la rendre au pool.
+		Si ce n'est pas le cas <tt class="literal">close()</tt> rend la connexion au pool.
+            </p></div></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="manipulatingdata-exceptions"></a>9.8.&nbsp;Traitement des exceptions</h2></div></div><div></div></div><p>Hibernate, au cours de son utilisation, peut lever des exceptions, g&eacute;n&eacute;ralement 
+            des <tt class="literal">hibernateException</tt>s. La cause &eacute;ventuelle de l'exception 
+            qui peut &ecirc;tre r&eacute;cup&eacute;r&eacute;e en utilisant <tt class="literal">getCause()</tt>.</p><p>
+            Si la <tt class="literal">Session</tt> l&egrave;ve une exception, 
+            vous devrez imm&eacute;diatement effectuer un
+            rollback de la transaction, appeler <tt class="literal">session.close()</tt>
+            et ne plus utiliser l'instance courante de la <tt class="literal">Session</tt>. Certaines
+            m&eacute;thodes de <tt class="literal">Session</tt> ne laisseront <span class="emphasis"><em>pas</em></span>
+            la session dans un &eacute;tat consistant. Cela signifie que toutes
+            les exceptions lev&eacute;es par Hibernate doivent &ecirc;tre consid&eacute;r&eacute;es comme fatales, 
+            vous pourriez donc envisager de convertir l'exception non runtime 
+            <tt class="literal">HibernateException</tt> en <tt class="literal">RuntimeException</tt> 
+            (la solution la plus simple est de changer la clause <tt class="literal">extends</tt> 
+            dans <tt class="literal">HibernateException.java</tt> et de recompiler le tout).
+            Notez que le fait que l'exception ne soit pas runtime est d&ucirc; &agrave; une erreur des
+            premiers ages d'Hibernate et sera corrig&eacute;e dans la prochaine version majeure.
+        </p><p>
+            Hibernate essaiera de convertir les <tt class="literal">SQLException</tt>s lev&eacute;es
+            lors des interactions avec la base de donn&eacute;es en des sous-classes de 
+            <tt class="literal">JDBCException</tt>. La <tt class="literal">SQLException</tt> 
+            sous-jacente est accessible en appelant <tt class="literal">JDBCException.getCause()</tt>.
+            Hibernate convertit la <tt class="literal">SQLException</tt> en une sous-classe
+            appropri&eacute;e de <tt class="literal">JDBCException</tt> en s'appuyant sur le
+            <tt class="literal">SQLExceptionConverter</tt> attach&eacute; &agrave; la <tt class="literal">SessionFactory</tt>.
+            Par d&eacute;faut, le <tt class="literal">SQLExceptionConverter</tt> utilis&eacute; est celui
+            d&eacute;fini par le dialecte ; il est cependant possible d'attacher une impl&eacute;mentation
+            sp&eacute;cifique (voir la javadoc de <tt class="literal">SQLExceptionConverterFactory</tt>
+            pour plus de d&eacute;tails). Les sous-types standards de <tt class="literal">JDBCException</tt>
+            sont :
+		</p><div class="itemizedlist"><ul type="disc" compact><li><p>
+					<tt class="literal">JDBCConnectionException</tt> - indique une erreur lors
+                    de la communication JDBC sous-jacente.
+				</p></li><li><p>
+					<tt class="literal">SQLGrammarException</tt> - indique une erreur de
+                    grammaire ou de syntaxe du SQL envoy&eacute;.
+				</p></li><li><p>
+					<tt class="literal">ConstraintViolationException</tt> - indique une forme de
+                    violation de contrainte d'int&eacute;grit&eacute;.
+				</p></li><li><p>
+					<tt class="literal">LockAcquisitionException</tt> - indique une erreur lors
+                    de l'acquisition d'un niveau de verrou requis pour ex&eacute;cuter l'op&eacute;ration
+                    demand&eacute;e.
+				</p></li><li><p>
+					<tt class="literal">GenericJDBCException</tt> - indique une exception g&eacute;n&eacute;rique
+                    dont la cause ne tombe pas dans les cat&eacute;gories pr&eacute;c&eacute;dentes.
+				</p></li></ul></div><p>
+            Comme toujours, toutes les exceptions sont consid&eacute;r&eacute;es comme fatales
+            &agrave; la <tt class="literal">Session</tt> et &agrave; la transaction courante.
+            Le fait qu'Hibernate sache maintenant mieux distinguer les diff&eacute;rents types
+            de <tt class="literal">SQLException</tt> n'implique en aucune mani&egrave;re que les 
+            exceptions soient r&eacute;cup&eacute;rables du point de vue de la <tt class="literal">Session</tt>.
+            La hi&eacute;rarchie typ&eacute;e des exceptions permet &agrave; l'application de 
+            mieux r&eacute;agir en cat&eacute;gorisant la cause de l'exception plus simplement
+            si besoin.
+		</p><p>
+            Il est recommand&eacute; d'effectuer le traitement des exceptions comme suit :
+        </p><pre class="programlisting">Session sess = factory.openSession();
+Transaction tx = null;
+try {
+    tx = sess.beginTransaction();
+    // faire qqch
+    ...
+    tx.commit();
+}
+catch (Exception e) {
+    if (tx!=null) tx.rollback();
+    throw e;
+}
+finally {
+    sess.close();
+}</pre><p>
+            Ou, si vous g&eacute;rez les transactions JDBC manuellement :
+        </p><pre class="programlisting">Session sess = factory.openSession();
+try {
+    // faire qqch
+    ...
+    sess.flush();
+    sess.connection().commit();
+}
+catch (Exception e) {
+    sess.connection().rollback();
+    throw e;
+}
+finally {
+    sess.close();
+}</pre><p>
+            Ou, si vous utilisez une datasource coupl&eacute;e avec JTA :
+        </p><pre class="programlisting">UserTransaction ut = .... ;
+Session sess = factory.openSession();
+try {
+    // faire qqch
+    ...
+    sess.flush();
+}
+catch (Exception e) {
+    ut.setRollbackOnly();
+    throw e;
+}
+finally {
+    sess.close();
+}</pre><p>N'oubliez pas qu'un serveur d'applications (dans un environnement g&eacute;r&eacute; par JTA) 
+    ne rollback les transactions automatiquement que pour les exceptions
+    <tt class="literal">java.lang.RuntimeException</tt>s. Si une exception applicative 
+    est lev&eacute;e (&agrave; savoir une exception non runtime <tt class="literal">HibernateException</tt>), vous
+    devez appeler la m&eacute;thode <tt class="literal">setRollbackOnly()</tt> d'<tt class="literal">EJBContext</tt>
+    vous-m&ecirc;me ou, comme montr&eacute; dans l'exemple pr&eacute;c&eacute;dent, l'encapsuler dans une 
+    <tt class="literal">RuntimeException</tt> (par exemple <tt class="literal">EJBException</tt>
+    pour un rollback automatique.
+    </p></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="manipulatingdata-graphs"></a>9.9.&nbsp;Cycles de vie et graphes d'objets</h2></div></div><div></div></div><p>
+            Pour sauvegarder ou mettre &agrave; jour tous les objets contenus dans un graphe 
+            d'objets associ&eacute;s, vous pouvez soit
+        </p><div class="itemizedlist"><ul type="disc" compact><li><p>
+                    invoquer individuellement <tt class="literal">save()</tt>, <tt class="literal">saveOrUpdate()</tt> ou
+                    <tt class="literal">update()</tt> sur chaque objet OU
+                </p></li><li><p>
+                    lier des objets en utilisant <tt class="literal">cascade="all"</tt> ou
+                    <tt class="literal">cascade="save-update"</tt>.
+                </p></li></ul></div><p>
+            De m&ecirc;me, pour supprimer tous les objets d'un graphe, vous pouvez soit
+        </p><div class="itemizedlist"><ul type="disc" compact><li><p>
+                    invoquer individuellement <tt class="literal">delete()</tt> sur chaque objet OU
+                </p></li><li><p>
+                    lier des objets en utilisant <tt class="literal">cascade="all"</tt>,
+                    <tt class="literal">cascade="all-delete-orphan"</tt> or
+                    <tt class="literal">cascade="delete"</tt>.
+                </p></li></ul></div><p>
+            Recommandation :
+        </p><div class="itemizedlist"><ul type="disc" compact><li><p>
+                    Si la dur&eacute;e de vie de l'objet fils est li&eacute;e &agrave; celle de l'objet p&egrave;re,
+		    fa&icirc;tes en un <span class="emphasis"><em>objet li&eacute; au cycle de vie</em></span> en sp&eacute;cifiant
+                    <tt class="literal">cascade="all"</tt>.
+                </p></li><li><p>
+                    Autrement, invoquez explicitement <tt class="literal">save()</tt> et <tt class="literal">delete()</tt> 
+                    dans le code de l'application. Si vous souhaitez vraiment &eacute;viter de
+                    taper du code suppl&eacute;mentaire, utilisez <tt class="literal">cascade="save-update"</tt> et
+		            appeler explicitement <tt class="literal">delete()</tt>.
+                </p></li></ul></div><p>
+            Mapper une assocation (plusieurs-vers-une, ou une collection) avec <tt class="literal">cascade="all"</tt>
+            d&eacute;finit l'association comme une relation de type <span class="emphasis"><em>parent/fils</em></span> o&ugrave; la
+	    sauvegarde/mise &agrave; jour/suppression du parent engendre la sauvegarde/mise &agrave; jour/suppression 
+	    du ou des fils.
+            Par ailleurs, la simple r&eacute;f&eacute;rence &agrave; un fils depuis un parent persistant 
+            engendrera une sauvegarde/mise &agrave; jour de l'enfant. La m&eacute;taphore est 
+            cependant incompl&egrave;te. Un fils qui n'est plus r&eacute;f&eacute;renc&eacute; par son p&egrave;re
+            n'est <span class="emphasis"><em>pas</em></span> automatiquement supprim&eacute;, sauf dans le cas d'une
+            association <tt class="literal">&lt;one-to-many&gt;</tt> mapp&eacute;e avec 
+            <tt class="literal">cascade="all-delete-orphan"</tt>. 
+	    Les d&eacute;finitions pr&eacute;cises des op&eacute;rations en cascade sont les suivantes :
+        </p><div class="itemizedlist"><ul type="disc" compact><li><p>
+                    Si un parent est sauvegard&eacute;, tous ces fils sont pass&eacute;s &agrave; <tt class="literal">saveOrUpdate()</tt>
+                </p></li><li><p>
+                    Si un parent est pass&eacute; &agrave; <tt class="literal">update()</tt> ou &agrave; <tt class="literal">saveOrUpdate()</tt>,
+                    tous ces fils sont pass&eacute;s &agrave; <tt class="literal">saveOrUpdate()</tt>
+                </p></li><li><p>
+                    Si un fils transiant devient r&eacute;f&eacute;renc&eacute; par un parent persistant, il est pass&eacute; &agrave;
+                    <tt class="literal">saveOrUpdate()</tt>
+                </p></li><li><p>
+                    Si le parent est supprim&eacute;, tous ces enfants sont pass&eacute;s &agrave; <tt class="literal">delete()</tt>
+                </p></li><li><p>
+                    Si un enfant transiant est d&eacute;r&eacute;f&eacute;renc&eacute; par un parent persistant, 
+                    <span class="emphasis"><em>rien ne se passe</em></span> (l'application devra 
+                    explicitement supprimer l'enfant si n&eacute;cessaire) sauf si
+		    <tt class="literal">cascade="all-delete-orphan"</tt> est positionn&eacute;, 
+            dans ce cas le fils "orphelin" est supprim&eacute;
+                </p></li></ul></div><p>
+            Hibernate n'impl&eacute;mente pas compl&egrave;tement la persistence par atteignabilit&eacute;, ce qui aurait
+	    pour cons&eacute;quence (inefficace) la garbage collection des objets persistants. 
+        Cependant, en raison de la demande, Hibernate supporte la notion de persistance 
+        d'entit&eacute;s lorsqu'elles sont r&eacute;f&eacute;renc&eacute;es par un autre objet persistant. 
+        Les associations d&eacute;finies avec <tt class="literal">cascade="save-update"</tt>
+	    ont ce comportement. Si vous souhaitez utliser cette approche dans toute votre application, 
+	    il est plus facile de sp&eacute;cifier l'attribut <tt class="literal">default-cascade</tt> de l'&eacute;l&eacute;ment 
+	    <tt class="literal">&lt;hibernate-mapping&gt;</tt>.
+        </p></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="manipulatingdata-interceptors"></a>9.10.&nbsp;Intercepteurs</h2></div></div><div></div></div><p>
+            L'interface <tt class="literal">Interceptor</tt> fournit des "callbacks" de la session vers 
+            l'application permettant &agrave; l'application de consulter et / ou manipuler des propri&eacute;t&eacute;s d'un objet
+            persistant avant qu'il soit sauvegard&eacute;, mis &agrave; jour, supprim&eacute; ou charg&eacute;. Une utilisation possible 
+	    de cette fonctionnalit&eacute; est de tracer l'acc&egrave;s &agrave; l'information. Par exemple, l'<tt class="literal">Interceptor</tt> qui suit
+	    va automatiquement positionner le <tt class="literal">createTimestamp</tt> quand un <tt class="literal">Auditable</tt> est cr&eacute;&eacute;
+	    et mettre &agrave; jour la propri&eacute;t&eacute; <tt class="literal">lastUpdateTimestamp</tt> quand un <tt class="literal">Auditable</tt> est modifi&eacute;.
+        </p><pre class="programlisting">package net.sf.hibernate.test;
+
+import java.io.Serializable;
+import java.util.Date;
+import java.util.Iterator;
+
+import net.sf.hibernate.Interceptor;
+import net.sf.hibernate.type.Type;
+
+public class AuditInterceptor implements Interceptor, Serializable {
+
+    private int updates;
+    private int creates;
+
+    public void onDelete(Object entity,
+                         Serializable id,
+                         Object[] state,
+                         String[] propertyNames,
+                         Type[] types) {
+        // ne rien faire
+    }
+
+    public boolean onFlushDirty(Object entity, 
+                                Serializable id, 
+                                Object[] currentState,
+                                Object[] previousState,
+                                String[] propertyNames,
+                                Type[] types) {
+
+        if ( entity instanceof Auditable ) {
+            updates++;
+            for ( int i=0; i &lt; propertyNames.length; i++ ) {
+                if ( "lastUpdateTimestamp".equals( propertyNames[i] ) ) {
+                    currentState[i] = new Date();
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public boolean onLoad(Object entity, 
+                          Serializable id,
+                          Object[] state,
+                          String[] propertyNames,
+                          Type[] types) {
+        return false;
+    }
+
+    public boolean onSave(Object entity,
+                          Serializable id,
+                          Object[] state,
+                          String[] propertyNames,
+                          Type[] types) {
+        
+        if ( entity instanceof Auditable ) {
+            creates++;
+            for ( int i=0; i&lt;propertyNames.length; i++ ) {
+                if ( "createTimestamp".equals( propertyNames[i] ) ) {
+                    state[i] = new Date();
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public void postFlush(Iterator entities) {
+        System.out.println("Creations: " + creates + ", Updates: " + updates);
+    }
+
+    public void preFlush(Iterator entities) {
+        updates=0;
+        creates=0;
+    }
+    
+    ......
+    ......
+    
+}</pre><p>
+            L'intercepteur doit &ecirc;tre sp&eacute;cifi&eacute; quand la session est cr&eacute;&eacute;e.
+        </p><pre class="programlisting">Session session = sf.openSession( new AuditInterceptor() );</pre><p>
+            Vous pouvez aussi activer un intercepteur pour toutes les sessions d'une
+            SessionFactory, en utilisant la <tt class="literal">Configuration</tt> :
+        </p><pre class="programlisting">new Configuration().setInterceptor( new AuditInterceptor() );</pre></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="manipulatingdata-metadata"></a>9.11.&nbsp;API d'acc&egrave;s aux m&eacute;tadonn&eacute;es</h2></div></div><div></div></div><p>
+            Hibernate a besoin d'un meta-mod&egrave;le tr&egrave;s riche de toutes les entit&eacute;s et types de valeurs. 
+	    Parfois, ce mod&egrave;le est tr&egrave;s utile &agrave; l'application elle m&ecirc;me. Par exemple, l'application 
+	    peut utiliser les m&eacute;tadonn&eacute;es d'Hibernate pour impl&eacute;menter un algorithme "intelligent" de copie
+	    qui comprend quels objets doivent &ecirc;tre copi&eacute;s (valeurs de types muables) et quels objets ne 
+	    peuvent l'&ecirc;tre (valeurs de types imuables, et &eacute;ventuellement les entit&eacute;s associ&eacute;es).
+        </p><p>
+            Hibernate expose les m&eacute;tadonn&eacute;es au travers des interfaces <tt class="literal">ClassMetadata</tt> et
+            <tt class="literal">CollectionMetadata</tt> et la hi&eacute;rarchie de <tt class="literal">Type</tt>. 
+	    Les instances des interfaces de m&eacute;tadonn&eacute;es peuvent &ecirc;tre obtenues depuis 
+        la <tt class="literal">SessionFactory</tt>.
+        </p><pre class="programlisting">Cat fritz = ......;
+Long id = (Long) catMeta.getIdentifier(fritz);
+ClassMetadata catMeta = sessionfactory.getClassMetadata(Cat.class);
+Object[] propertyValues = catMeta.getPropertyValues(fritz);
+String[] propertyNames = catMeta.getPropertyNames();
+Type[] propertyTypes = catMeta.getPropertyTypes();
+// retourne une Map de toutes les propri&eacute;t&eacute;s qui ne sont pas des collections ou des associations
+// TODO: what about components?
+Map namedValues = new HashMap();
+for ( int i=0; i&lt;propertyNames.length; i++ ) {
+    if ( !propertyTypes[i].isEntityType() &amp;&amp; !propertyTypes[i].isCollectionType() ) {
+        namedValues.put( propertyNames[i], propertyValues[i] );
+    }
+}</pre></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="inheritance.html">Pr&eacute;c&eacute;dent</a>&nbsp;</td><td width="20%" align="center"><a accesskey="u" href="index.html">Niveau sup&eacute;rieur</a></td><td width="40%" align="right">&nbsp;<a accesskey="n" href="transactions.html">Suivant</a></td></tr><tr><td width="40%" align="left" valign="top">Chapitre&nbsp;8.&nbsp;Mapping de l'h&eacute;ritage de classe&nbsp;</td><td width="20%" align="center"><a accesskey="h" href="index.html">Sommaire</a></td><td width="40%" align="right" valign="top">&nbsp;Chapitre&nbsp;10.&nbsp;Transactions et acc&egrave;s concurrents</td></tr></table></div></body></html>

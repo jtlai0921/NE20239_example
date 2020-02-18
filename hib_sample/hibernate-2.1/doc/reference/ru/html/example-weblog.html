@@ -1,0 +1,400 @@
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+   <title>&#1043;&#1083;&#1072;&#1074;&#1072; 17. &#1055;&#1088;&#1080;&#1084;&#1077;&#1088;: Weblog-&#1055;&#1088;&#1080;&#1083;&#1086;&#1078;&#1077;&#1085;&#1080;&#1077;</title><link rel="stylesheet" href="../shared/css/html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.65.1"><link rel="home" href="index.html" title="HIBERNATE - Relational Persistence for Idiomatic Java"><link rel="up" href="index.html" title="HIBERNATE - Relational Persistence for Idiomatic Java"><link rel="previous" href="example-parentchild.html" title="&#1043;&#1083;&#1072;&#1074;&#1072; 16. &#1055;&#1088;&#1080;&#1084;&#1077;&#1088;: &#1056;&#1086;&#1076;&#1080;&#1090;&#1077;&#1083;&#1100;/&#1056;&#1077;&#1073;&#1077;&#1085;&#1086;&#1082; (Parent/Child)"><link rel="next" href="example-mappings.html" title="&#1043;&#1083;&#1072;&#1074;&#1072; 18. &#1055;&#1088;&#1080;&#1084;&#1077;&#1088;: &#1056;&#1072;&#1079;&#1083;&#1080;&#1095;&#1085;&#1099;&#1077; &#1052;&#1101;&#1087;&#1087;&#1080;&#1085;&#1075;&#1080;"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">&#1043;&#1083;&#1072;&#1074;&#1072; 17. &#1055;&#1088;&#1080;&#1084;&#1077;&#1088;: Weblog-&#1055;&#1088;&#1080;&#1083;&#1086;&#1078;&#1077;&#1085;&#1080;&#1077;</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="example-parentchild.html">&#1055;&#1088;&#1077;&#1076;.</a>&nbsp;</td><th width="60%" align="center">&nbsp;</th><td width="20%" align="right">&nbsp;<a accesskey="n" href="example-mappings.html">&#1057;&#1083;&#1077;&#1076;.</a></td></tr></table><hr></div><div class="chapter" lang="ru"><div class="titlepage"><div><div><h2 class="title"><a name="example-weblog"></a>&#1043;&#1083;&#1072;&#1074;&#1072; 17. &#1055;&#1088;&#1080;&#1084;&#1077;&#1088;: Weblog-&#1055;&#1088;&#1080;&#1083;&#1086;&#1078;&#1077;&#1085;&#1080;&#1077;</h2></div></div><div></div></div><div class="sect1" lang="ru"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="example-weblog-classes"></a>17.1. &#1044;&#1086;&#1083;&#1075;&#1086;&#1078;&#1080;&#1074;&#1091;&#1097;&#1080;&#1077; &#1050;&#1083;&#1072;&#1089;&#1089;&#1099; (Persistent Classes)</h2></div></div><div></div></div><p>
+            &#1044;&#1086;&#1083;&#1075;&#1086;&#1078;&#1080;&#1074;&#1091;&#1097;&#1080;&#1077; &#1082;&#1083;&#1072;&#1089;&#1089;&#1099; &#1087;&#1088;&#1077;&#1076;&#1089;&#1090;&#1072;&#1074;&#1083;&#1103;&#1102;&#1090; &#1089;&#1072;&#1084; weblog &#1080; &#1079;&#1072;&#1084;&#1077;&#1090;&#1082;&#1080;, &#1082;&#1086;&#1090;&#1086;&#1088;&#1099;&#1077; &#1073;&#1099;&#1083;&#1080;
+            &#1086;&#1090;&#1086;&#1089;&#1083;&#1072;&#1085;&#1099; &#1074; &#1085;&#1077;&#1075;&#1086;. &#1042;&#1079;&#1072;&#1080;&#1084;&#1086;&#1086;&#1090;&#1085;&#1086;&#1096;&#1077;&#1085;&#1080;&#1077; &#1084;&#1077;&#1078;&#1076;&#1091; &#1076;&#1072;&#1085;&#1085;&#1099;&#1084;&#1080; &#1089;&#1091;&#1097;&#1085;&#1086;&#1089;&#1090;&#1103;&#1084;&#1080; &#1073;&#1091;&#1076;&#1077;&#1090; &#1079;&#1072;&#1084;&#1101;&#1087;&#1083;&#1077;&#1085;&#1086;
+            &#1082;&#1072;&#1082; &#1089;&#1090;&#1072;&#1085;&#1076;&#1072;&#1088;&#1090;&#1085;&#1086;&#1077; &#1086;&#1090;&#1085;&#1086;&#1096;&#1077;&#1085;&#1080;&#1077; &#1088;&#1086;&#1076;&#1080;&#1090;&#1077;&#1083;&#1100;/&#1088;&#1077;&#1073;&#1077;&#1085;&#1086;&#1082; (parent/child), &#1085;&#1086; &#1084;&#1099; &#1073;&#1091;&#1076;&#1077;&#1084;
+            &#1080;&#1089;&#1087;&#1086;&#1083;&#1100;&#1079;&#1086;&#1074;&#1072;&#1090;&#1100; &#1091;&#1087;&#1086;&#1088;&#1103;&#1076;&#1086;&#1095;&#1077;&#1085;&#1085;&#1099;&#1081; bag (ordered bag) &#1074;&#1084;&#1077;&#1089;&#1090;&#1086; &#1084;&#1085;&#1086;&#1078;&#1077;&#1089;&#1090;&#1074;&#1072; (set).
+        </p><pre class="programlisting">package eg;
+
+import java.util.List;
+
+public class Blog {
+    private Long _id;
+    private String _name;
+    private List _items;
+
+    public Long getId() {
+        return _id;
+    }
+    public List getItems() {
+        return _items;
+    }
+    public String getName() {
+        return _name;
+    }
+    public void setId(Long long1) {
+        _id = long1;
+    }
+    public void setItems(List list) {
+        _items = list;
+    }
+    public void setName(String string) {
+        _name = string;
+    }
+}</pre><pre class="programlisting">package eg;
+
+import java.text.DateFormat;
+import java.util.Calendar;
+
+public class BlogItem {
+    private Long _id;
+    private Calendar _datetime;
+    private String _text;
+    private String _title;
+    private Blog _blog;
+
+    public Blog getBlog() {
+        return _blog;
+    }
+    public Calendar getDatetime() {
+        return _datetime;
+    }
+    public Long getId() {
+        return _id;
+    }
+    public String getText() {
+        return _text;
+    }
+    public String getTitle() {
+        return _title;
+    }
+    public void setBlog(Blog blog) {
+        _blog = blog;
+    }
+    public void setDatetime(Calendar calendar) {
+        _datetime = calendar;
+    }
+    public void setId(Long long1) {
+        _id = long1;
+    }
+    public void setText(String string) {
+        _text = string;
+    }
+    public void setTitle(String string) {
+        _title = string;
+    }
+}</pre></div><div class="sect1" lang="ru"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="example-weblog-mappings"></a>17.2. Hibernate-&#1052;&#1101;&#1087;&#1087;&#1080;&#1085;&#1075;</h2></div></div><div></div></div><p>
+            XML-&#1084;&#1101;&#1087;&#1087;&#1080;&#1085;&#1075;, &#1074; &#1076;&#1072;&#1085;&#1085;&#1086;&#1084; &#1089;&#1083;&#1091;&#1095;&#1072;&#1077;, &#1076;&#1086;&#1083;&#1078;&#1077;&#1085; &#1073;&#1099;&#1090;&#1100; &#1076;&#1086;&#1089;&#1090;&#1072;&#1090;&#1086;&#1095;&#1085;&#1086; &#1087;&#1088;&#1086;&#1089;&#1090;&#1099;&#1084;.
+        </p><pre class="programlisting">&lt;?xml version="1.0"?&gt;
+&lt;!DOCTYPE hibernate-mapping PUBLIC 
+        "-//Hibernate/Hibernate Mapping DTD 2.0//EN"
+        "http://hibernate.sourceforge.net/hibernate-mapping-2.0.dtd"&gt;
+
+&lt;hibernate-mapping package="eg"&gt;
+
+    &lt;class 
+        name="Blog" 
+        table="BLOGS" 
+        lazy="true"&gt;
+        
+        &lt;id 
+            name="id" 
+            column="BLOG_ID"&gt;
+            
+            &lt;generator class="native"/&gt;
+            
+        &lt;/id&gt;
+        
+        &lt;property 
+            name="name" 
+            column="NAME" 
+            not-null="true" 
+            unique="true"/&gt;
+            
+        &lt;bag 
+            name="items" 
+            inverse="true" 
+            lazy="true"
+            order-by="DATE_TIME" 
+            cascade="all"&gt;
+            
+            &lt;key column="BLOG_ID"/&gt;
+            &lt;one-to-many class="BlogItem"/&gt;
+            
+        &lt;/bag&gt;
+        
+    &lt;/class&gt;
+    
+&lt;/hibernate-mapping&gt;</pre><pre class="programlisting">&lt;?xml version="1.0"?&gt;
+&lt;!DOCTYPE hibernate-mapping PUBLIC 
+        "-//Hibernate/Hibernate Mapping DTD 2.0//EN"
+        "http://hibernate.sourceforge.net/hibernate-mapping-2.0.dtd"&gt;
+
+&lt;hibernate-mapping package="eg"&gt;
+    
+    &lt;class 
+        name="BlogItem" 
+        table="BLOG_ITEMS" 
+        dynamic-update="true"&gt;
+        
+        &lt;id 
+            name="id" 
+            column="BLOG_ITEM_ID"&gt;
+            
+            &lt;generator class="native"/&gt;
+            
+        &lt;/id&gt;
+        
+        &lt;property 
+            name="title" 
+            column="TITLE" 
+            not-null="true"/&gt;
+            
+        &lt;property 
+            name="text" 
+            column="TEXT" 
+            not-null="true"/&gt;
+            
+        &lt;property 
+            name="datetime" 
+            column="DATE_TIME" 
+            not-null="true"/&gt;
+            
+        &lt;many-to-one 
+            name="blog" 
+            column="BLOG_ID" 
+            not-null="true"/&gt;
+            
+    &lt;/class&gt;
+    
+&lt;/hibernate-mapping&gt;</pre></div><div class="sect1" lang="ru"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="example-weblog-code"></a>17.3. Hibernate-&#1050;&#1086;&#1076;</h2></div></div><div></div></div><p>
+            &#1057;&#1083;&#1077;&#1076;&#1091;&#1102;&#1097;&#1080;&#1081; &#1082;&#1083;&#1072;&#1089;&#1089; &#1076;&#1077;&#1084;&#1086;&#1085;&#1089;&#1090;&#1088;&#1080;&#1088;&#1091;&#1077;&#1090; &#1085;&#1077;&#1082;&#1086;&#1090;&#1086;&#1088;&#1099;&#1077; &#1074;&#1077;&#1097;&#1080;, &#1082;&#1086;&#1090;&#1086;&#1088;&#1099;&#1077; &#1084;&#1099; &#1084;&#1086;&#1078;&#1077;&#1090; &#1076;&#1077;&#1083;&#1072;&#1090;&#1100;
+            &#1089; &#1101;&#1090;&#1080;&#1084;&#1080; &#1082;&#1083;&#1072;&#1089;&#1089;&#1072;&#1084;&#1080;, &#1080;&#1089;&#1087;&#1086;&#1083;&#1100;&#1079;&#1091;&#1103; Hibernate.
+        </p><pre class="programlisting">package eg;
+
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Iterator;
+import java.util.List;
+
+import net.sf.hibernate.HibernateException;
+import net.sf.hibernate.Query;
+import net.sf.hibernate.Session;
+import net.sf.hibernate.SessionFactory;
+import net.sf.hibernate.Transaction;
+import net.sf.hibernate.cfg.Configuration;
+import net.sf.hibernate.tool.hbm2ddl.SchemaExport;
+
+public class BlogMain {
+    
+    private SessionFactory _sessions;
+    
+    public void configure() throws HibernateException {
+        _sessions = new Configuration()
+            .addClass(Blog.class)
+            .addClass(BlogItem.class)
+            .buildSessionFactory();
+    }
+    
+    public void exportTables() throws HibernateException {
+        Configuration cfg = new Configuration()
+            .addClass(Blog.class)
+            .addClass(BlogItem.class);
+        new SchemaExport(cfg).create(true, true);
+    }
+    
+    public Blog createBlog(String name) throws HibernateException {
+        
+        Blog blog = new Blog();
+        blog.setName(name);
+        blog.setItems( new ArrayList() );
+        
+        Session session = _sessions.openSession();
+        Transaction tx = null;
+        try {
+            tx = session.beginTransaction();
+            session.save(blog);
+            tx.commit();
+        }
+        catch (HibernateException he) {
+            if (tx!=null) tx.rollback();
+            throw he;
+        }
+        finally {
+            session.close();
+        }
+        return blog;
+    }
+    
+    public BlogItem createBlogItem(Blog blog, String title, String text)
+                        throws HibernateException {
+        
+        BlogItem item = new BlogItem();
+        item.setTitle(title);
+        item.setText(text);
+        item.setBlog(blog);
+        item.setDatetime( Calendar.getInstance() );
+        blog.getItems().add(item);
+        
+        Session session = _sessions.openSession();
+        Transaction tx = null;
+        try {
+            tx = session.beginTransaction();
+            session.update(blog);
+            tx.commit();
+        }
+        catch (HibernateException he) {
+            if (tx!=null) tx.rollback();
+            throw he;
+        }
+        finally {
+            session.close();
+        }
+        return item;
+    }
+    
+    public BlogItem createBlogItem(Long blogid, String title, String text)
+                        throws HibernateException {
+        
+        BlogItem item = new BlogItem();
+        item.setTitle(title);
+        item.setText(text);
+        item.setDatetime( Calendar.getInstance() );
+        
+        Session session = _sessions.openSession();
+        Transaction tx = null;
+        try {
+            tx = session.beginTransaction();
+            Blog blog = (Blog) session.load(Blog.class, blogid);
+            item.setBlog(blog);
+            blog.getItems().add(item);
+            tx.commit();
+        }
+        catch (HibernateException he) {
+            if (tx!=null) tx.rollback();
+            throw he;
+        }
+        finally {
+            session.close();
+        }
+        return item;
+    }
+    
+    public void updateBlogItem(BlogItem item, String text)
+                    throws HibernateException {
+        
+        item.setText(text);
+        
+        Session session = _sessions.openSession();
+        Transaction tx = null;
+        try {
+            tx = session.beginTransaction();
+            session.update(item);
+            tx.commit();
+        }
+        catch (HibernateException he) {
+            if (tx!=null) tx.rollback();
+            throw he;
+        }
+        finally {
+            session.close();
+        }
+    }
+    
+    public void updateBlogItem(Long itemid, String text)
+                    throws HibernateException {
+    
+        Session session = _sessions.openSession();
+        Transaction tx = null;
+        try {
+            tx = session.beginTransaction();
+            BlogItem item = (BlogItem) session.load(BlogItem.class, itemid);
+            item.setText(text);
+            tx.commit();
+        }
+        catch (HibernateException he) {
+            if (tx!=null) tx.rollback();
+            throw he;
+        }
+        finally {
+            session.close();
+        }
+    }
+    
+    public List listAllBlogNamesAndItemCounts(int max)
+                    throws HibernateException {
+        
+        Session session = _sessions.openSession();
+        Transaction tx = null;
+        List result = null;
+        try {
+            tx = session.beginTransaction();
+            Query q = session.createQuery(
+                "select blog.id, blog.name, count(blogItem) " +
+                "from Blog as blog " +
+                "left outer join blog.items as blogItem " +
+                "group by blog.name, blog.id " +
+                "order by max(blogItem.datetime)"
+            );
+            q.setMaxResults(max);
+            result = q.list();
+            tx.commit();
+        }
+        catch (HibernateException he) {
+            if (tx!=null) tx.rollback();
+            throw he;
+        }
+        finally {
+            session.close();
+        }
+        return result;
+    }
+    
+    public Blog getBlogAndAllItems(Long blogid)
+                    throws HibernateException {
+        
+        Session session = _sessions.openSession();
+        Transaction tx = null;
+        Blog blog = null;
+        try {
+            tx = session.beginTransaction();
+            Query q = session.createQuery(
+                "from Blog as blog " +
+                "left outer join fetch blog.items " +
+                "where blog.id = :blogid"
+            );
+            q.setParameter("blogid", blogid);
+            blog  = (Blog) q.list().get(0);
+            tx.commit();
+        }
+        catch (HibernateException he) {
+            if (tx!=null) tx.rollback();
+            throw he;
+        }
+        finally {
+            session.close();
+        }
+        return blog;
+    }
+    
+    public List listBlogsAndRecentItems() throws HibernateException {
+        
+        Session session = _sessions.openSession();
+        Transaction tx = null;
+        List result = null;
+        try {
+            tx = session.beginTransaction();
+            Query q = session.createQuery(
+                "from Blog as blog " +
+                "inner join blog.items as blogItem " +
+                "where blogItem.datetime &gt; :minDate"
+            );
+
+            Calendar cal = Calendar.getInstance();
+            cal.roll(Calendar.MONTH, false);
+            q.setCalendar("minDate", cal);
+            
+            result = q.list();
+            tx.commit();
+        }
+        catch (HibernateException he) {
+            if (tx!=null) tx.rollback();
+            throw he;
+        }
+        finally {
+            session.close();
+        }
+        return result;
+    }
+}</pre></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="example-parentchild.html">&#1055;&#1088;&#1077;&#1076;.</a>&nbsp;</td><td width="20%" align="center"><a accesskey="u" href="index.html">&#1059;&#1088;&#1086;&#1074;&#1077;&#1085;&#1100; &#1074;&#1099;&#1096;&#1077;</a></td><td width="40%" align="right">&nbsp;<a accesskey="n" href="example-mappings.html">&#1057;&#1083;&#1077;&#1076;.</a></td></tr><tr><td width="40%" align="left" valign="top">&#1043;&#1083;&#1072;&#1074;&#1072; 16. &#1055;&#1088;&#1080;&#1084;&#1077;&#1088;: &#1056;&#1086;&#1076;&#1080;&#1090;&#1077;&#1083;&#1100;/&#1056;&#1077;&#1073;&#1077;&#1085;&#1086;&#1082; (Parent/Child)&nbsp;</td><td width="20%" align="center"><a accesskey="h" href="index.html">&#1053;&#1072;&#1095;&#1072;&#1083;&#1086;</a></td><td width="40%" align="right" valign="top">&nbsp;&#1043;&#1083;&#1072;&#1074;&#1072; 18. &#1055;&#1088;&#1080;&#1084;&#1077;&#1088;: &#1056;&#1072;&#1079;&#1083;&#1080;&#1095;&#1085;&#1099;&#1077; &#1052;&#1101;&#1087;&#1087;&#1080;&#1085;&#1075;&#1080;</td></tr></table></div></body></html>

@@ -1,0 +1,128 @@
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+   <title>Chapitre&nbsp;12.&nbsp;Requ&ecirc;tes par crit&egrave;res</title><link rel="stylesheet" href="../shared/css/html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.65.1"><link rel="home" href="index.html" title="HIBERNATE - Persistence Relationnelle dans un Java standard"><link rel="up" href="index.html" title="HIBERNATE - Persistence Relationnelle dans un Java standard"><link rel="previous" href="queryhql.html" title="Chapitre&nbsp;11.&nbsp;HQL: Langage de requ&ecirc;tage d'Hibernate"><link rel="next" href="querysql.html" title="Chapitre&nbsp;13.&nbsp;Requ&ecirc;tes en sql natif"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapitre&nbsp;12.&nbsp;Requ&ecirc;tes par crit&egrave;res</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="queryhql.html">Pr&eacute;c&eacute;dent</a>&nbsp;</td><th width="60%" align="center">&nbsp;</th><td width="20%" align="right">&nbsp;<a accesskey="n" href="querysql.html">Suivant</a></td></tr></table><hr></div><div class="chapter" lang="fr"><div class="titlepage"><div><div><h2 class="title"><a name="querycriteria"></a>Chapitre&nbsp;12.&nbsp;Requ&ecirc;tes par crit&egrave;res</h2></div></div><div></div></div><p>
+        Intuitive et extensible, l'API d'interrogation par crit&egrave;re est d&eacute;sormais offerte par Hibernate. 
+        Pour le moment, cette API est moins puissante que l'HQL et toutes les possibilit&eacute;s qu'il offre.
+	En particulier, criteria ne supporte pas la projection ou l'aggr&eacute;gation.
+    </p><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="querycriteria-creating"></a>12.1.&nbsp;Cr&eacute;er une instance de <tt class="literal">Criteria</tt></h2></div></div><div></div></div><p>
+            L'interface <tt class="literal">net.sf.hibernate.Criteria</tt> repr&eacute;sente une requ&ecirc;te sur une
+	    classe persistente donn&eacute;e. La <tt class="literal">Session</tt> fournit les instances de
+            <tt class="literal">Criteria</tt>.
+        </p><pre class="programlisting">Criteria crit = sess.createCriteria(Cat.class);
+crit.setMaxResults(50);
+List cats = crit.list();</pre></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="querycriteria-narrowing"></a>12.2.&nbsp;Restriction du r&eacute;sultat</h2></div></div><div></div></div><p>
+            Un criterion (crit&egrave;re de recherche) est une instance de l'interface
+            <tt class="literal">net.sf.hibernate.expression.Criterion</tt>. La classe
+            <tt class="literal">net.sf.hibernate.expression.Expression</tt> d&eacute;finit
+            des m&eacute;thodes pour obtenir des types de <tt class="literal">Criterion</tt>
+	    pr&eacute; d&eacute;finis.
+        </p><pre class="programlisting">List cats = sess.createCriteria(Cat.class)
+    .add( Expression.like("name", "Fritz%") )
+    .add( Expression.between("weight", minWeight, maxWeight) )
+    .list();</pre><p>
+            Les expressions peuvent &ecirc;tre goup&eacute;es de mani&egrave;re logique.
+        </p><pre class="programlisting">List cats = sess.createCriteria(Cat.class)
+    .add( Expression.like("name", "Fritz%") )
+    .add( Expression.or(
+        Expression.eq( "age", new Integer(0) ),
+        Expression.isNull("age")
+    ) )
+    .list();</pre><pre class="programlisting">List cats = sess.createCriteria(Cat.class)
+    .add( Expression.in( "name", new String[] { "Fritz", "Izi", "Pk" } ) )
+    .add( Expression.disjunction()
+        .add( Expression.isNull("age") )
+    	.add( Expression.eq("age", new Integer(0) ) )
+    	.add( Expression.eq("age", new Integer(1) ) )
+    	.add( Expression.eq("age", new Integer(2) ) )
+    ) )
+    .list();</pre><p>
+            Il y a plusieurs types de criterion pr&eacute; d&eacute;finis (sous classes de <tt class="literal">Expression</tt>),
+	    mais l'une d'entre elle particuli&egrave;rement utile vous permet de sp&eacute;cifier directement
+	    du SQL.
+        </p><pre class="programlisting">List cats = sess.createCriteria(Cat.class)
+    .add( Expression.sql("lower({alias}.name) like lower(?)", "Fritz%", Hibernate.STRING) )
+    .list();</pre><p>
+            La zone <tt class="literal">{alias}</tt> sera remplac&eacute;e par l'alias de colonne de l'entit&eacute; 
+	    que l'on souhaite int&eacute;rroger.
+        </p></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="querycriteria-ordering"></a>12.3.&nbsp;Trier les r&eacute;sultats</h2></div></div><div></div></div><p>
+            Vous pouvez trier les r&eacute;sultats en utilisant <tt class="literal">net.sf.hibernate.expression.Order</tt>.
+        </p><pre class="programlisting">List cats = sess.createCriteria(Cat.class)
+    .add( Expression.like("name", "F%")
+    .addOrder( Order.asc("name") )
+    .addOrder( Order.desc("age") )
+    .setMaxResults(50)
+    .list();</pre></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="querycriteria-associations"></a>12.4.&nbsp;Associations</h2></div></div><div></div></div><p>
+            Vous pouvez facilement sp&eacute;cifier des contraintes sur des entit&eacute;s li&eacute;es,
+	    par des associations en utilisant <tt class="literal">createCriteria()</tt>.
+        </p><pre class="programlisting">List cats = sess.createCriteria(Cat.class)
+    .add( Expression.like("name", "F%")
+    .createCriteria("kittens")
+        .add( Expression.like("name", "F%")
+    .list();</pre><p>
+            Notez que la seconde <tt class="literal">createCriteria()</tt> retourne une nouvelle
+	    instance de <tt class="literal">Criteria</tt>, qui se rapporte aux &eacute;l&eacute;ments de la 
+	    collection <tt class="literal">kittens</tt>.
+        </p><p>
+            La forme alternative suivante est utile dans certains cas.
+        </p><pre class="programlisting">List cats = sess.createCriteria(Cat.class)
+    .createAlias("kittens", "kt")
+    .createAlias("mate", "mt")
+    .add( Expression.eqProperty("kt.name", "mt.name") )
+    .list();</pre><p>
+            (<tt class="literal">createAlias()</tt> ne cr&eacute;&eacute; par de nouvelle instance de
+            <tt class="literal">Criteria</tt>.)
+        </p><p>
+            Notez que les collections kittens contenues dans les instances de <tt class="literal">Cat</tt>
+            retourn&eacute;es par les deux pr&eacute;c&eacute;dentes requ&ecirc;tes ne sont <span class="emphasis"><em>pas</em></span> pr&eacute;-filtr&eacute;es
+            par les crit&egrave;res ! Si vous souhaitez r&eacute;cup&eacute;rer uniquement les kittens qui correspondent &agrave; la
+            criteria, vous devez utiliser <tt class="literal">returnMaps()</tt>.
+        </p><pre class="programlisting">List cats = sess.createCriteria(Cat.class)
+    .createCriteria("kittens", "kt")
+        .add( Expression.eq("name", "F%") )
+    .returnMaps()
+    .list();
+Iterator iter = cats.iterator();
+while ( iter.hasNext() ) {
+    Map map = (Map) iter.next();
+    Cat cat = (Cat) map.get(Criteria.ROOT_ALIAS);
+    Cat kitten = (Cat) map.get("kt");
+}</pre></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="querycriteria-dynamicfetching"></a>12.5.&nbsp;Peuplement d'associations de mani&egrave;re dynamique</h2></div></div><div></div></div><p>
+            Vous pouvez sp&eacute;ficier au runtime le peuplement d'une association en utilisant
+            <tt class="literal">setFetchMode()</tt> (c'est-&agrave;-dire le chargement de celle-ci).
+            Cela permet de surcharger les valeurs
+            "lazy" et "outer-join" du mapping.
+        </p><pre class="programlisting">List cats = sess.createCriteria(Cat.class)
+    .add( Expression.like("name", "Fritz%") )
+    .setFetchMode("mate", FetchMode.EAGER)
+    .setFetchMode("kittens", FetchMode.EAGER)
+    .list();</pre><p>
+            Cette requ&ecirc;te recherchera <tt class="literal">mate</tt> et <tt class="literal">kittens</tt>
+            via les jointures externes.
+        </p></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="querycriteria-examples"></a>12.6.&nbsp;Requ&ecirc;te par l'exemple</h2></div></div><div></div></div><p>
+            La classe <tt class="literal">net.sf.hibernate.expression.Example</tt> vous permet de 
+	    construire un crit&egrave;re suivant une instance d'objet donn&eacute;e.
+        </p><pre class="programlisting">Cat cat = new Cat();
+cat.setSex('F');
+cat.setColor(Color.BLACK);
+List results = session.createCriteria(Cat.class)
+    .add( Example.create(cat) )
+    .list();</pre><p>
+           Les propri&eacute;t&eacute;s de type version, identifiant et association sont ignor&eacute;es.
+	   Par d&eacute;faut, les valeurs null sont exclues.
+        </p><p>
+           Vous pouvez ajuster la strat&eacute;gie d'utilisation de valeurs de 
+           l'<tt class="literal">Exemple</tt>.
+        </p><pre class="programlisting">Example example = Example.create(cat)
+    .excludeZeroes()           //exclure les valeurs z&eacute;ro
+    .excludeProperty("color")  //exclure la propri&eacute;t&eacute; nomm&eacute;e "color"
+    .ignoreCase()              //ne respecte pas la casse sur les chaines de caract&egrave;res
+    .enableLike();             //utilise like pour les comparaisons de string
+List results = session.createCriteria(Cat.class)
+    .add(example)
+    .list();</pre><p>
+            Vous pouvez utiliser les "exemples" pour des crit&egrave;res sur les objets associ&eacute;s.
+        </p><pre class="programlisting">List results = session.createCriteria(Cat.class)
+    .add( Example.create(cat) )
+    .createCriteria("mate")
+        .add( Example.create( cat.getMate() ) )
+    .list();</pre></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="queryhql.html">Pr&eacute;c&eacute;dent</a>&nbsp;</td><td width="20%" align="center"><a accesskey="u" href="index.html">Niveau sup&eacute;rieur</a></td><td width="40%" align="right">&nbsp;<a accesskey="n" href="querysql.html">Suivant</a></td></tr><tr><td width="40%" align="left" valign="top">Chapitre&nbsp;11.&nbsp;HQL: Langage de requ&ecirc;tage d'Hibernate&nbsp;</td><td width="20%" align="center"><a accesskey="h" href="index.html">Sommaire</a></td><td width="40%" align="right" valign="top">&nbsp;Chapitre&nbsp;13.&nbsp;Requ&ecirc;tes en sql natif</td></tr></table></div></body></html>

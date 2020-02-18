@@ -1,0 +1,258 @@
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+   <title>Capitolo&nbsp;7.&nbsp;Mappaggio dei componenti</title><link rel="stylesheet" href="../shared/css/html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.65.1"><link rel="home" href="index.html" title="HIBERNATE - Persistenza Relazionale Idiomatica per Java"><link rel="up" href="index.html" title="HIBERNATE - Persistenza Relazionale Idiomatica per Java"><link rel="previous" href="collections.html" title="Capitolo&nbsp;6.&nbsp;Mappaggio delle collezioni"><link rel="next" href="inheritance.html" title="Capitolo&nbsp;8.&nbsp;Mappaggio di gerarchie di ereditariet&agrave;"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Capitolo&nbsp;7.&nbsp;Mappaggio dei componenti</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="collections.html">Indietro</a>&nbsp;</td><th width="60%" align="center">&nbsp;</th><td width="20%" align="right">&nbsp;<a accesskey="n" href="inheritance.html">Avanti</a></td></tr></table><hr></div><div class="chapter" lang="it"><div class="titlepage"><div><div><h2 class="title"><a name="components"></a>Capitolo&nbsp;7.&nbsp;Mappaggio dei componenti</h2></div></div><div></div></div><p>
+        La nozione di un <span class="emphasis"><em>componente</em></span> viene usata in differenti contesti per scopi diversi, 
+        in tutto Hibernate.
+    </p><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="components-dependentobjects"></a>7.1.&nbsp;Oggetti dipendenti</h2></div></div><div></div></div><p>
+            Un componente &egrave; un oggetto contenuto, che viene reso persistente come un tipo di valore ("value type"),
+            non un'entit&agrave;. Il termine "componente" si riferisce al concetto "orientato agli oggetti" della composizione
+            (non a componenti di livello architetturale). Per esempio, potreste modellare una persona come segue:
+        </p><pre class="programlisting">public class Person {
+    private java.util.Date birthday;
+    private Name name;
+    private String key;
+    public String getKey() {
+        return key;
+    }
+    private void setKey(String key) {
+        this.key=key;
+    }
+    public java.util.Date getBirthday() {
+        return birthday;
+    }
+    public void setBirthday(java.util.Date birthday) {
+        this.birthday = birthday;
+    }
+    public Name getName() {
+        return name;
+    }
+    public void setName(Name name) {
+        this.name = name;
+    }
+    ......
+    ......
+}</pre><pre class="programlisting">public class Name {
+    char initial;
+    String first;
+    String last;
+    public String getFirst() {
+        return first;
+    }
+    void setFirst(String first) {
+        this.first = first;
+    }
+    public String getLast() {
+        return last;
+    }
+    void setLast(String last) {
+        this.last = last;
+    }
+    public char getInitial() {
+        return initial;
+    }
+    void setInitial(char initial) {
+        this.initial = initial;
+    }
+}</pre><p>
+            Ora <tt class="literal">Name</tt> pu&ograve; essere reso persistente come un componente di 
+            <tt class="literal">Person</tt>. Notate che <tt class="literal">Name</tt> definisce metodi "getter"
+            e "setter" per le sue propriet&agrave; persistenti, ma non deve dichiarare alcuna interfaccia o 
+            propriet&agrave; identificatore.
+        </p><p>
+            Il nostro mappaggio Hibernate avrebbe questo aspetto:
+        </p><pre class="programlisting">&lt;class name="eg.Person" table="person"&gt;
+    &lt;id name="Key" column="pid" type="string"&gt;
+        &lt;generator class="uuid.hex"/&gt;
+    &lt;/id&gt;
+    &lt;property name="birthday" type="date"/&gt;
+    &lt;component name="Name" class="eg.Name"&gt; &lt;!-- l'attributo class &egrave; opzionale --&gt;
+        &lt;property name="initial"/&gt;
+        &lt;property name="first"/&gt;
+        &lt;property name="last"/&gt;
+    &lt;/component&gt;
+&lt;/class&gt;</pre><p>
+            La tabella "person" avrebbe le colonne <tt class="literal">pid</tt>,
+            <tt class="literal">birthday</tt>,
+            <tt class="literal">initial</tt>,
+            <tt class="literal">first</tt> e
+            <tt class="literal">last</tt>.
+        </p><p>
+            Come tutti i tipi di valore, i componenti non supportano riferimenti condivisi. 
+            La semantica di valore nullo di un componente &egrave; <span class="emphasis"><em>ad hoc</em></span>. Quando si 
+            ricarica l'oggetto contenitore, Hibernate supporr&agrave; che se tutte le colonne del componente
+            sono nulle, allora l'intero componente &egrave; nullo. Questo dovrebbe adattarsi alla maggior parte
+            degli scopi.
+        </p><p>
+            Le propriet&agrave; di un componente possono essere di un tipo qualunque di Hibernate (collezioni
+            associazioni molti-a-uno, altri componenti, ecc.). Componenti annidati <span class="emphasis"><em>non</em></span> 
+            dovrebbero essere considerati un utilizzo esotico. Hibernate &egrave; pensato per supportare un 
+            modello ad oggetti a grana molto fine.
+        </p><p>
+            L'elemento <tt class="literal">&lt;component&gt;</tt> consente di usare un sotto-elemento <tt class="literal">&lt;parent&gt;</tt>
+            che mappa la propriet&agrave; di una classe componente come un riferimento "indietro" all'entit&agrave; contenitore.
+        </p><pre class="programlisting">&lt;class name="eg.Person" table="person"&gt;
+    &lt;id name="Key" column="pid" type="string"&gt;
+        &lt;generator class="uuid.hex"/&gt;
+    &lt;/id&gt;
+    &lt;property name="birthday" type="date"/&gt;
+    &lt;component name="Name" class="eg.Name"&gt;
+        &lt;parent name="namedPerson"/&gt; &lt;!-- retro-riferimento all'oggetto Person --&gt;
+        &lt;property name="initial"/&gt;
+        &lt;property name="first"/&gt;
+        &lt;property name="last"/&gt;
+    &lt;/component&gt;
+&lt;/class&gt;</pre></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="components-incollections"></a>7.2.&nbsp;Collezioni di oggetti dipendenti</h2></div></div><div></div></div><p>
+            Le collezioni di componenti sono permesse (ad esempio un array di 
+            tipo <tt class="literal">Name</tt>). Dichiarate le collezioni di componenti
+            rimpiazzando l'etichetta <tt class="literal">&lt;element&gt;</tt> con una 
+            <tt class="literal">&lt;composite-element&gt;</tt>.
+        </p><pre class="programlisting">&lt;set name="someNames" table="some_names" lazy="true"&gt;
+    &lt;key column="id"/&gt;
+    &lt;composite-element class="eg.Name"&gt; &lt;!-- l'attributo class &egrave; obbligatorio --&gt;
+        &lt;property name="initial"/&gt;
+        &lt;property name="first"/&gt;
+        &lt;property name="last"/&gt;
+    &lt;/composite-element&gt;
+&lt;/set&gt;</pre><p>
+            Nota: se definite un <tt class="literal">Set</tt> di elementi composti, &egrave; molto importante
+            definire correttamente <tt class="literal">equals()</tt> e 
+            <tt class="literal">hashCode()</tt> correctly.
+        </p><p>
+            Gli elementi composti possono contenere componenti ma non collezioni. Se il 
+            vostro elemento composto contiene componenti, usate l'etichetta 
+            <tt class="literal">&lt;nested-composite-element&gt;</tt>. Si tratta di un caso abbastanza
+            esotico - una collezione di componenti che a loro volta hanno componenti. A questo
+            stadio dovreste chiedervi se una associazione uno-a-molti non sia pi&ugrave; appropriata.
+            Provate a rimodellare l'elemento composto come una entit&agrave; - ma notate che anche se
+            il modello java &egrave; lo stesso, il modello relazionale e la semantica di persistenza
+            sono leggermente diversi.
+        </p><p>
+            Tenete presente che un mappaggio ad elemento composto non supporta propriet&agrave; nulle
+            se state usando un <tt class="literal">&lt;set&gt;</tt>. Hibernate deve usare
+            ogni colonna per identificare un record quando cancella oggetti (non c'&egrave; 
+            una colonna separata di chiave primaria, nella tabella dell'elemento composto), 
+            cosa che non &egrave; possibile con valori nulli. In un composite-element dovete usare solo propriet&agrave; 
+            non nulle o scegliere una 
+            <tt class="literal">&lt;list&gt;</tt>, <tt class="literal">&lt;map&gt;</tt>,
+            <tt class="literal">&lt;bag&gt;</tt> o <tt class="literal">&lt;idbag&gt;</tt>.
+        </p><p>
+            Un caso speciale di elemento composto &egrave; quello in cui l'elemento stesso ha
+            un altro elemento annidato <tt class="literal">&lt;many-to-one&gt;</tt>. Un 
+            mappaggio di questo tipo, vi consente di mappare colonne extra di una
+            tabella molti-a-molti sulla classe dell'elemento composto. Qui di seguito
+            mostriamo una associazione molti-a-molti da <tt class="literal">Order</tt> a <tt class="literal">Item</tt> 
+            in cui <tt class="literal">purchaseDate</tt>, <tt class="literal">price</tt> e
+            <tt class="literal">quantity</tt> sono propriet&agrave; dell'associazione:
+        </p><pre class="programlisting">&lt;class name="eg.Order" .... &gt;
+    ....
+    &lt;set name="purchasedItems" table="purchase_items" lazy="true"&gt;
+        &lt;key column="order_id"&gt;
+        &lt;composite-element class="eg.Purchase"&gt;
+            &lt;property name="purchaseDate"/&gt;
+            &lt;property name="price"/&gt;
+            &lt;property name="quantity"/&gt;
+            &lt;many-to-one name="item" class="eg.Item"/&gt; &lt;!-- l'attributo class &egrave; opzionale --&gt;
+        &lt;/composite-element&gt;
+    &lt;/set&gt;
+&lt;/class&gt;</pre><p>Sono possibili anche associazioni ternarie (o quaternarie, ecc):</p><pre class="programlisting">&lt;class name="eg.Order" .... &gt;
+    ....
+    &lt;set name="purchasedItems" table="purchase_items" lazy="true"&gt;
+        &lt;key column="order_id"&gt;
+        &lt;composite-element class="eg.OrderLine"&gt;
+            &lt;many-to-one name="purchaseDetails class="eg.Purchase"/&gt;
+            &lt;many-to-one name="item" class="eg.Item"/&gt;
+        &lt;/composite-element&gt;
+    &lt;/set&gt;
+&lt;/class&gt;</pre><p>
+            Gli elementi composti possono apparire nelle query usando la stessa
+            sintassi delle associazioni ad altre entit&agrave;.
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="components-asmapindex"></a>7.3.&nbsp;Componenti come indici delle mappe</h2></div></div><div></div></div><p>
+            L'elemento <tt class="literal">&lt;composite-index&gt;</tt> vi consente di mappare 
+            una classe di componente come chiave di una <tt class="literal">Map</tt>. Assicuratevi
+            di implementare <tt class="literal">hashCode()</tt> e <tt class="literal">equals()</tt> correttamente
+            sulla classe componente, in questo caso.
+        </p></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="components-compositeid"></a>7.4.&nbsp;Componenti come identificatori composti</h2></div></div><div></div></div><p>
+            Potete usare un componente come un identificatore di una classe di entit&agrave;. La vostra classe di 
+            componente deve soddisfare alcuni requisiti:
+        </p><div class="itemizedlist"><ul type="disc" compact><li><p>
+                    Deve implementare <tt class="literal">java.io.Serializable</tt>.
+                </p></li><li><p>
+                    Deve re-implementare <tt class="literal">equals()</tt> and
+                    <tt class="literal">hashCode()</tt>, consistentemente con la nozione
+                    di uguaglianza di chiave sul database.
+                </p></li></ul></div><p>
+            Non potete usare un  <tt class="literal">IdentifierGenerator</tt> per generare chiavi 
+            composte. Al contrario, sar&agrave; l'applicazione che deve assegnare i propri identificatori.
+        </p><p>
+            Poich&eacute; un identificatore composto deve venire assegnato all'oggetto prima di salvarlo,
+            non possiamo usare un "valore non salvato" (<tt class="literal">unsaved-value</tt>) sull'identificatore
+            per distinguere tra istanze appena istanziate e istanze salvate in una sessione precedente.
+        </p><p>
+            Se volete usare <tt class="literal">saveOrUpdate()</tt> o save / update in cascata, 
+            potete invece implementare <tt class="literal">Interceptor.isUnsaved()</tt> .
+            In alternativa, potete anche impostare l'attributo <tt class="literal">unsaved-value</tt>
+            su un elemento <tt class="literal">&lt;version&gt;</tt> (o
+            <tt class="literal">&lt;timestamp&gt;</tt>) per specificare il valore che identifica una nuova
+            istanza transiente. In questo caso, viene usata la versione dell'entit&agrave; invece dell'identificatore
+            (assegnato), e non dovete essere voi ad implementare <tt class="literal">Interceptor.isUnsaved()</tt>.
+        </p><p>
+            Per dichiarare un identificatore di classe composta, usate l'elemento <tt class="literal">&lt;composite-id&gt;</tt> 
+            (con gli stessi attributi ed elementi di <tt class="literal">&lt;component&gt;</tt>) al posto di 
+            <tt class="literal">&lt;id&gt;</tt>:
+        </p><pre class="programlisting">&lt;class name="eg.Foo" table"FOOS"&gt;
+    &lt;composite-id name="compId" class="eg.FooCompositeID"&gt;
+        &lt;key-property name="string"/&gt;
+        &lt;key-property name="short"/&gt;
+        &lt;key-property name="date" column="date_" type="date"/&gt;
+    &lt;/composite-id&gt;
+    &lt;property name="name"/&gt;
+    ....
+&lt;/class&gt;</pre><p>
+            Ora, qualsiasi chiave esterna verso la tabella <tt class="literal">FOOS</tt> deve necessariamente
+            essere composta, e dovete dichiararlo nei vostri mappaggi delle altre classi. Una associazione
+            verso <tt class="literal">Foo</tt> verr&agrave; dichiarata in questo modo:
+        </p><pre class="programlisting">&lt;many-to-one name="foo" class="eg.Foo"&gt;
+&lt;!-- come sempre l'attributo "class" &egrave; opzionale --&gt;
+    &lt;column name="foo_string"/&gt;
+    &lt;column name="foo_short"/&gt;
+    &lt;column name="foo_date"/&gt;
+&lt;/many-to-one&gt;</pre><p>
+        Questo nuovo elemento <tt class="literal">&lt;column&gt;</tt> viene anche usato dai tipi personalizzati
+        multi-colonna. In effetti &egrave; ovunque un'alternativa all'attributo <tt class="literal">column</tt>. Una collezione
+        con elementi di tipo <tt class="literal">Foo</tt> utilizzerebbe:
+    </p><pre class="programlisting">&lt;set name="foos"&gt;
+    &lt;key column="owner_id"/&gt;
+    &lt;many-to-many class="eg.Foo"&gt;
+        &lt;column name="foo_string"/&gt;
+        &lt;column name="foo_short"/&gt;
+        &lt;column name="foo_date"/&gt;
+    &lt;/many-to-many&gt;
+&lt;/set&gt;</pre><p>
+            Dall'altro lato, <tt class="literal">&lt;one-to-many&gt;</tt>, non dichiara colonne, come sempre.
+        </p><p>
+            Se lo stesso <tt class="literal">Foo</tt> contiene collezioni, anch'esse richiederanno una chiave
+            esterna composta.
+        </p><pre class="programlisting">&lt;class name="eg.Foo"&gt;
+    ....
+    ....
+    &lt;set name="dates" lazy="true"&gt;
+        &lt;key&gt;   &lt;!-- la collezione eredita il tipo della chiave composta --&gt;
+            &lt;column name="foo_string"/&gt;
+            &lt;column name="foo_short"/&gt;
+            &lt;column name="foo_date"/&gt;
+        &lt;/key&gt;
+        &lt;element column="foo_date" type="date"/&gt;
+    &lt;/set&gt;
+&lt;/class&gt;</pre></div><div class="sect1" lang="it"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="components-dynamic"></a>7.5.&nbsp;Componenti dinamici</h2></div></div><div></div></div><p>
+            Potete anche mappare una propriet&agrave; di tipo <tt class="literal">Map</tt>:
+        </p><pre class="programlisting">&lt;dynamic-component name="userAttributes"&gt;
+    &lt;property name="foo" column="FOO"/&gt;
+    &lt;property name="bar" column="BAR"/&gt;
+    &lt;many-to-one name="baz" class="eg.Baz" column="BAZ"/&gt;
+&lt;/dynamic-component&gt;</pre><p>
+            La semantica di un mappaggio <tt class="literal">&lt;dynamic-component&gt;</tt> &egrave; identica a 
+            <tt class="literal">&lt;component&gt;</tt>. Il vantaggio di questo tipo di mappaggio &egrave; la 
+            capacit&agrave; di determinare le vere propriet&agrave; del bean in fase di messa in esecuzione, 
+            semplicemente cambiando il documento di mappaggio. ( &Egrave; anche possibile manipolare in fase
+            di esecuzione il documento di mappaggio usando un parser DOM)
+        </p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="collections.html">Indietro</a>&nbsp;</td><td width="20%" align="center"><a accesskey="u" href="index.html">Risali</a></td><td width="40%" align="right">&nbsp;<a accesskey="n" href="inheritance.html">Avanti</a></td></tr><tr><td width="40%" align="left" valign="top">Capitolo&nbsp;6.&nbsp;Mappaggio delle collezioni&nbsp;</td><td width="20%" align="center"><a accesskey="h" href="index.html">Partenza</a></td><td width="40%" align="right" valign="top">&nbsp;Capitolo&nbsp;8.&nbsp;Mappaggio di gerarchie di ereditariet&agrave;</td></tr></table></div></body></html>

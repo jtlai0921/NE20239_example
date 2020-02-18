@@ -1,0 +1,498 @@
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+   <title>Chapitre&nbsp;1.&nbsp;Exemple simple utilisant Tomcat</title><link rel="stylesheet" href="../shared/css/html.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.65.1"><link rel="home" href="index.html" title="HIBERNATE - Persistence Relationnelle dans un Java standard"><link rel="up" href="index.html" title="HIBERNATE - Persistence Relationnelle dans un Java standard"><link rel="previous" href="preface.html" title="Pr&eacute;face"><link rel="next" href="architecture.html" title="Chapitre&nbsp;2.&nbsp;Architecture"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapitre&nbsp;1.&nbsp;Exemple simple utilisant Tomcat</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="preface.html">Pr&eacute;c&eacute;dent</a>&nbsp;</td><th width="60%" align="center">&nbsp;</th><td width="20%" align="right">&nbsp;<a accesskey="n" href="architecture.html">Suivant</a></td></tr></table><hr></div><div class="chapter" lang="fr"><div class="titlepage"><div><div><h2 class="title"><a name="quickstart"></a>Chapitre&nbsp;1.&nbsp;Exemple simple utilisant Tomcat</h2></div></div><div></div></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="quickstart-intro"></a>1.1.&nbsp;Vos d&eacute;buts avec Hibernate</h2></div></div><div></div></div><p>
+            Ce tutoriel d&eacute;taille la mise en place d'Hibernate 2.1 avec le conteneur de
+            servlet Apache Tomcat sur une application web. Hibernate est pr&eacute;vu pour fonctionner 
+            &agrave; la fois dans un environnement manag&eacute; tel que propos&eacute; par tous les plus 
+            grands serveurs d'applications J2EE, mais aussi dans les applications Java autonomes.
+            Bien que le syst&egrave;me de base de donn&eacute;es utilis&eacute; dans ce toturiel soit PostgreSQL 7.3,
+            le support d'autres bases de donn&eacute;es n'est qu'une question de configuration du 
+            dialecte SQL d'Hibernate.
+        </p><p>
+            Premi&egrave;rement, nous devons copier toutes les biblioth&egrave;ques n&eacute;cessaires &agrave; l'installation
+            dans Tomcat. Utilisant un contexte web s&eacute;par&eacute; (<tt class="literal">webapps/quickstart</tt>)
+            pour ce tutoriel, nous devons faire attention &agrave; la fois au chemin vers des biblioth&egrave;ques
+            globales (<tt class="literal">TOMCAT/common/lib</tt>) et au chemin du classloader contextuel 
+            de la webapp dans <tt class="literal">webapps/quickstart/WEB-INF/lib</tt> (pour les fichiers JAR) et
+            <tt class="literal">webapps/quickstart/WEB-INF/classes</tt>. On se r&eacute;f&egrave;rera aux deux niveaux
+            de classloader que sont le classloader de classpath global et de classpath contextuel de la webapp.
+        </p><p>
+            Maintenant, copions les biblioth&egrave;ques dans les deux classpaths :
+        </p><div class="orderedlist"><ol type="1"><li><p>
+                    Copiez le pilote JDBC de la base de donn&eacute;es dans le classpath global. C'est
+                    n&eacute;cessaire &agrave; l'utilisation du pool de connexions DBCP qui vient avec Tomcat.
+                    Hibernate utilise les connexions JDBC pour ex&eacute;cuter les ordres SQL sur la base de donn&eacute;es,
+                    donc vous devez soit fournir les connexions JDBC pool&eacute;es, soit configurer Hibernate
+                    pour utiliser l'un des pools nativement support&eacute;s (C3P0, Proxool). Pour ce tutoriel,
+                    copiez la blblioth&egrave;que <tt class="literal">pg73jdbc3.jar</tt> (pour PostgreSQL 7.3 et le JDK 1.4)
+                    dans le classpath global. Si vous voulez utiliser une base de donn&eacute;es diff&eacute;rente, copiez
+                    simplement le pilote JDBC appropri&eacute;.
+                </p></li><li><p>
+                    Ne copiez jamais autre chose dans le classpath global de Tomcat ou vous auriez des
+                    probl&egrave;mes avec divers outils tels que log4j, commons-logging, et d'autres. Utilisez 
+                    toujours le classpath contextuel de la webapp propre &agrave; chaque application, et donc copiez les 
+                    biblioth&egrave;ques dans <tt class="literal">WEB-INF/lib</tt>, puis copiez vos propres
+                    classes ainsi que les fichiers de configuration/de propri&eacute;t&eacute; dans 
+                    <tt class="literal">WEB-INF/classes</tt>. Ces deux r&eacute;pertoires sont, 
+                    par d&eacute;finition de la sp&eacute;cification J2EE, dans le classpath contextuel de la webapp.
+				</p></li><li><p>
+                    Hibernate se pr&eacute;sente sous la forme d'une blblioth&egrave;que JAR. Le fichier 
+                    <tt class="literal">hibernate2.jar</tt> doit &ecirc;tre copi&eacute; dans le classpath  
+                    contextuel de la webapp avec les autres classes de l'application. 
+                    Hibernate a besoin
+                    de quelques biblioth&egrave;ques tierces &agrave; l'ex&eacute;cution, elles sont embarqu&eacute;es dans
+                    la distribution Hibernate et se trouvent dans le r&eacute;pertoire
+                    <tt class="literal">lib/</tt> ; voir <a href="quickstart.html#3rdpartylibs" title="Tableau&nbsp;1.1.&nbsp;&#xA;                Biblioth&egrave;ques tierces n&eacute;cessaires &agrave; Hibernate&#xA;            ">Tableau&nbsp;1.1, &laquo;&nbsp;
+                Biblioth&egrave;ques tierces n&eacute;cessaires &agrave; Hibernate
+            &nbsp;&raquo;</a>.
+                    Copiez les biblioth&egrave;ques tierces requises dans le classpath de contexte.
+                </p></li></ol></div><div class="table"><a name="3rdpartylibs"></a><p class="title"><b>Tableau&nbsp;1.1.&nbsp;
+                Biblioth&egrave;ques tierces n&eacute;cessaires &agrave; Hibernate
+            </b></p><table summary="&#xA;                Biblioth&egrave;ques tierces n&eacute;cessaires &agrave; Hibernate&#xA;            " border="1"><colgroup><col><col></colgroup><thead><tr><th align="center">
+                            Biblioth&egrave;que
+                        </th><th align="center">
+                            Description
+                        </th></tr></thead><tbody><tr><td>
+                            dom4j (requise)
+                        </td><td>
+                            Hibernate utilise dom4j pour lire la configuration XML
+                            et les fichiers XML de m&eacute;tadonn&eacute;es du mapping.
+                        </td></tr><tr><td>
+                            CGLIB (requise)
+                        </td><td>
+                            Hibernate utilise cette biblioth&egrave;que de g&eacute;n&eacute;ration de code
+                            pour &eacute;tendre les classes &agrave; l'ex&eacute;cution (en conjonction
+                            avec la r&eacute;flexion Java).
+                        </td></tr><tr><td>
+                            Commons Collections, Commons Logging (requises)
+                        </td><td>
+                            Hibernate utilise diverses biblioth&egrave;ques du projet Apache
+                            Jakarta Commons.
+                        </td></tr><tr><td>
+                            ODMG4 (requise)
+                        </td><td>
+                            Hibernate est compatible avec l'interface de gestion de la 
+                            persistance telle que d&eacute;finie par l'ODMG. Elle est n&eacute;cessaire
+                            si vous voulez mapper des collections m&ecirc;me si vous n'avez pas
+                            l'intention d'utiliser l'API de l'ODMG. Nous ne mappons pas de
+                            collections dans ce tutoriel, mais, quoi qu'il arrive c'est une
+                            bonne id&eacute;e de copier ce JAR.
+                        </td></tr><tr><td>
+                            EHCache (requise)
+                        </td><td>
+                            Hibernate peut utiliser diverses impl&eacute;mentations de cache de second 
+                            niveau. EHCache est l'impl&eacute;mentation par d&eacute;faut (tant qu'elle n'est
+                            pas chang&eacute;e dans le fichier de configuration).
+                        </td></tr><tr><td>
+                            Log4j (optionnelle)
+                        </td><td>
+                            Hibernate utilise l'API Commons Logging, qui peut utiliser log4j comme
+                            m&eacute;canisme de log sous-jacent. Si la biblioth&egrave;que Log4j est disponible dans
+                            le classpath, Commons Logging l'utilisera ainsi que son fichier
+                            de configuration <tt class="literal">log4j.properties</tt> r&eacute;cup&eacute;r&eacute; depuis le 
+                            classpath. Un exemple de fichier de propri&eacute;t&eacute;s pour log4j
+                            est embarqu&eacute; dans la distribution d'Hibernate. Donc, copiez
+                            <tt class="literal">log4j.jar</tt> et le fichier de configuration (qui se trouve
+                            dans <tt class="literal">src/</tt>) dans le classpath contextuel de la webapp si vous voulez
+                            voir ce que fait Hibernate pour vous.
+                        </td></tr><tr><td>
+                            N&eacute;cessaire ou pas ?
+                        </td><td>
+                            Jetez un coup d'oeil &agrave; <tt class="literal">lib/README.txt</tt> de la
+                            distribution d'Hibernate. C'est une liste &agrave; jour des biblioth&egrave;ques
+                            tierces distribu&eacute;es avec Hibernate. Vous y trouverez toutes les
+                            biblioth&egrave;ques list&eacute;es et si elles sont requises ou optionnelles.
+                        </td></tr></tbody></table></div><p>
+            Nous allons maintenant configurer le pool de connexions &agrave; la base de donn&eacute;es
+            &agrave; la fois dans Tomcat mais aussi dans Hibernate. Cela signifie que Tomcat
+            proposera des connexions JDBC pool&eacute;es (en s'appuyant sur son pool DBCP),
+            et qu'Hibernate demandera ces connexions &agrave; travers le JNDI. Tomcat proposant
+            l'acc&egrave;s au pool de connexions via JNDI, nous ajoutons la d&eacute;claration de ressource
+            dans le fichier de configuration principal de Tomcat
+            (<tt class="literal">TOMCAT/conf/server.xml</tt>) :
+        </p><pre class="programlisting">&lt;Context path="/quickstart" docBase="quickstart"&gt;
+    &lt;Resource name="jdbc/quickstart" scope="Shareable" type="javax.sql.DataSource"/&gt;
+    &lt;ResourceParams name="jdbc/quickstart"&gt;
+        &lt;parameter&gt;
+            &lt;name&gt;factory&lt;/name&gt;
+            &lt;value&gt;org.apache.commons.dbcp.BasicDataSourceFactory&lt;/value&gt;
+        &lt;/parameter&gt;
+
+        &lt;!-- param&egrave;tres de connexion DBCP &agrave; la base de donn&eacute;es --&gt;
+        &lt;parameter&gt;
+            &lt;name&gt;url&lt;/name&gt;
+            &lt;value&gt;jdbc:postgresql://localhost/quickstart&lt;/value&gt;
+        &lt;/parameter&gt;
+        &lt;parameter&gt;
+            &lt;name&gt;driverClassName&lt;/name&gt;&lt;value&gt;org.postgresql.Driver&lt;/value&gt;
+        &lt;/parameter&gt;
+        &lt;parameter&gt;
+            &lt;name&gt;username&lt;/name&gt;
+            &lt;value&gt;quickstart&lt;/value&gt;
+        &lt;/parameter&gt;
+        &lt;parameter&gt;
+            &lt;name&gt;password&lt;/name&gt;
+            &lt;value&gt;secret&lt;/value&gt;
+        &lt;/parameter&gt;
+
+        &lt;!-- options du pool de connexion DBCP --&gt;
+        &lt;parameter&gt;
+            &lt;name&gt;maxWait&lt;/name&gt;
+            &lt;value&gt;3000&lt;/value&gt;
+        &lt;/parameter&gt;
+        &lt;parameter&gt;
+            &lt;name&gt;maxIdle&lt;/name&gt;
+            &lt;value&gt;100&lt;/value&gt;
+        &lt;/parameter&gt;
+        &lt;parameter&gt;
+            &lt;name&gt;maxActive&lt;/name&gt;
+            &lt;value&gt;10&lt;/value&gt;
+        &lt;/parameter&gt;
+    &lt;/ResourceParams&gt;
+&lt;/Context&gt;</pre><p>
+            Le contexte web que l'on a configur&eacute; dans cet exemple se nomme <tt class="literal">quickstart</tt>,
+            son r&eacute;pertoire de base &eacute;tant <tt class="literal">TOMCAT/webapp/quickstart</tt>.
+            Pour acc&eacute;der aux servlets, appeler l'URL <tt class="literal">http://localhost:8080/quickstart</tt> 
+            &agrave; partir de votre navigateur (apr&egrave;s avoir bien entendu ajout&eacute; le nom de votre servlet et
+            l'avoir li&eacute; dans votre fichier <tt class="literal">web.xml</tt>). Vous pouvez &eacute;galement commencer &agrave; 
+            cr&eacute;er une servlet simple qui poss&egrave;de une m&eacute;thode <tt class="literal">process()</tt> vide.
+		</p><p>
+            Tomcat utilise le pool de connexions DBCP avec sa configuration et fournit les 
+            <tt class="literal">Connection</tt>s JDBC pool&eacute;es &agrave; travers l'interface JNDI &agrave; l'adresse 
+            <tt class="literal">java:comp/env/jdbc/quickstart</tt>. Si vous &eacute;prouvez des probl&egrave;mes pour faire
+            fonctionner le pool de connexions, r&eacute;f&eacute;rez-vous &agrave; la documentation Tomcat. Si vous
+            avez des messages de type exception du pilote JDBC, commencez par configurer le pool de 
+            connexions JDBC sans Hibernate. Des tutoriels sur Tomcat et JDBC sont disponibles sur le Web.
+        </p><p>
+            La prochaine &eacute;tape consiste &agrave; configurer Hibernate pour utiliser les connexions du pool 
+            attach&eacute; au JNDI. Nous allons utiliser le fichier de configuration XML d'Hibernate.
+            L'approche basique utilisant le fichier .properties est &eacute;quivalente fonctionnellement, mais
+            n'offre pas d'avantage. Nous utiliserons le fichier de configuration XML parce que c'est
+            souvent plus pratique. Le fichier de configuration XML est plac&eacute; dans le classpath contextuel
+            de la webapp (<tt class="literal">WEB-INF/classes</tt>), sous le nom <tt class="literal">hibernate.cfg.xml</tt> :
+        </p><pre class="programlisting">&lt;?xml version='1.0' encoding='utf-8'?&gt;
+&lt;!DOCTYPE hibernate-configuration
+    PUBLIC "-//Hibernate/Hibernate Configuration DTD//EN"
+    "http://hibernate.sourceforge.net/hibernate-configuration-2.0.dtd"&gt;
+
+&lt;hibernate-configuration&gt;
+
+    &lt;session-factory&gt;
+
+        &lt;property name="connection.datasource"&gt;java:comp/env/jdbc/quickstart&lt;/property&gt;
+        &lt;property name="show_sql"&gt;false&lt;/property&gt;
+        &lt;property name="dialect"&gt;net.sf.hibernate.dialect.PostgreSQLDialect&lt;/property&gt;
+
+        &lt;!-- fichiers de mapping --&gt;
+        &lt;mapping resource="Cat.hbm.xml"/&gt;
+
+    &lt;/session-factory&gt;
+
+&lt;/hibernate-configuration&gt;</pre><p>
+            Le fichier de configuration montre que nous avons stopp&eacute; la log des commandes
+            SQL, positionn&eacute; le dialecte SQL de la base de donn&eacute;es utilis&eacute;e, et fournit
+            le lien o&ugrave; r&eacute;cup&eacute;rer les
+            connexions JDBC (en d&eacute;clarant l'adresse JNDI &agrave; laquelle est attach&eacute;e le pool de
+            source de donn&eacute;es). Le dialecte est un param&egrave;trage n&eacute;cessaire du fait que les
+            bases de donn&eacute;es diff&egrave;rent dans leur interpr&eacute;tation du SQL "standard". Hibernate
+            s'occupe de ces diff&eacute;rences et vient avec des dialectes pour toutes les
+            bases de donn&eacute;es les plus connues commerciales ou open sources.
+        </p><p>
+            Une <tt class="literal">SessionFactory</tt> est un concept Hibernate qui repr&eacute;sente
+            un et un seul entrep&ocirc;t de donn&eacute;es ; plusieurs bases de donn&eacute;es peuvent &ecirc;tre
+            utilis&eacute;es en cr&eacute;ant plusieurs fichiers de configuration XML, plusieurs objets
+            <tt class="literal">Configuration</tt> et <tt class="literal">SessionFactory</tt> dans
+            votre application.
+        </p><p>
+            Le dernier &eacute;l&eacute;ment de <tt class="literal">hibernate.cfg.xml</tt> d&eacute;clare
+            <tt class="literal">Cat.hbm.xml</tt> comme fichier de mapping Hibernate pour
+            la classe <tt class="literal">Cat</tt>. Ce fichier contient les m&eacute;tadonn&eacute;es
+            du lien entre la classe Java (aussi appel&eacute; POJO pour Plain Old Java 
+            Object) et une table de la base de donn&eacute;es (voire plusieurs tables).
+            Nous reviendrons bient&ocirc;t sur ce fichier. Commen&ccedil;ons par &eacute;crire la classe
+            java (ou POJO) et d&eacute;clarons les m&eacute;tadonn&eacute;es de mapping pour celle-ci.
+        </p></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="quickstart-persistentclass"></a>1.2.&nbsp;La premi&egrave;re classe persistante</h2></div></div><div></div></div><p>
+            Hibernate fonctionne au mieux dans un mod&egrave;le de programmation 
+            consistant &agrave; utiliser de Bon Vieux Objets Java (Plain Old Java Objects - 
+            POJO) pour les classes persistantes (NdT: on parle de POJO en comparaison 
+            d'objets de type EJB ou d'objets n&eacute;cessitants d'h&eacute;riter d'une quelconque 
+            classe de base). Un POJO est souvent un JavaBean dont les propri&eacute;t&eacute;s 
+            de la classe sont accessibles via des getters et des setters qui encapsulent 
+            la repr&eacute;sentation interne dans une interface publique :
+        </p><pre class="programlisting">package net.sf.hibernate.examples.quickstart;
+
+public class Cat {
+
+    private String id;
+    private String name;
+    private char sex;
+    private float weight;
+
+    public Cat() {
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    private void setId(String id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public char getSex() {
+        return sex;
+    }
+
+    public void setSex(char sex) {
+        this.sex = sex;
+    }
+
+    public float getWeight() {
+        return weight;
+    }
+
+    public void setWeight(float weight) {
+        this.weight = weight;
+    }
+
+}</pre><p>
+            Hibernate ne restreint pas l'usage des types de propri&eacute;t&eacute;s ; tous les
+            types du JDK et les types primitifs (comme <tt class="literal">String</tt>,
+            <tt class="literal">char</tt> et <tt class="literal">Date</tt>) peuvent &ecirc;tre mapp&eacute;s,
+            ceci inclus les classes du framework de collection de Java. Vous pouvez
+            les mapper en tant que valeurs, collections de valeurs ou comme associations
+            avec les autres entit&eacute;s. <tt class="literal">id</tt> est une propri&eacute;t&eacute; sp&eacute;ciale
+            qui repr&eacute;sente l'identifiant dans la base de donn&eacute;es pour cette classe
+            (appel&eacute; aussi cl&eacute; primaire). Cet identifiant est chaudement recommand&eacute;
+            pour les entit&eacute;s comme <tt class="literal">Cat</tt> : Hibernate peut utiliser
+            les identifiants pour son seul fonctionnement interne (non visible de 
+            l'application) mais vous perdriez en flexibilit&eacute; dans l'architecture de
+            votre application.
+        </p><p>
+            Les classes persistantes n'ont besoin d'impl&eacute;menter aucune interface
+            particuli&egrave;re et n'ont pas besoin d'h&eacute;riter d'une quelconque classe 
+            de base. Hibernate n'utilise &eacute;galement aucun m&eacute;canisme de
+            manipulation des classes &agrave; la construction, tel que la manipulation du
+            byte-code ; il s'appuie uniquement sur le m&eacute;canisme de r&eacute;flexion de Java
+            et sur l'extension des classes &agrave; l'ex&eacute;cution (via CGLIB). On peut donc,
+            sans la moindre d&eacute;pendance entre les classes POJO et Hibernate, les
+            mapper &agrave; une table de la base de donn&eacute;es.
+        </p></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="quickstart-mapping"></a>1.3.&nbsp;Mapper le Chat</h2></div></div><div></div></div><p>
+            Le fichier de mapping <tt class="literal">Cat.hbm.xml</tt> contient les 
+	    m&eacute;tadonn&eacute;es requises pour le mapping objet/relationnel. Les m&eacute;tadonn&eacute;es
+	    contiennent la d&eacute;claration des classes persistantes et le mapping entre
+	    les propri&eacute;t&eacute;s (les colonnes, les relations de type cl&eacute; &eacute;trang&egrave;re vers les
+	    autres entit&eacute;s) et les tables de la base de donn&eacute;es.
+        </p><pre class="programlisting">&lt;?xml version="1.0"?&gt;
+&lt;!DOCTYPE hibernate-mapping
+    PUBLIC "-//Hibernate/Hibernate Mapping DTD//EN"
+    "http://hibernate.sourceforge.net/hibernate-mapping-2.0.dtd"&gt;
+
+&lt;hibernate-mapping&gt;
+
+    &lt;class name="net.sf.hibernate.examples.quickstart.Cat" table="CAT"&gt;
+
+        &lt;!-- Une cha&icirc;ne de 32 caract&egrave;res hexad&eacute;cimaux est notre
+	    cl&eacute; technique. Elle est g&eacute;n&eacute;r&eacute;e automatiquement par 
+	    Hibernate en utilisant le pattern UUID. --&gt;
+        &lt;id name="id" type="string" unsaved-value="null" &gt;
+            &lt;column name="CAT_ID" sql-type="char(32)" not-null="true"/&gt;
+            &lt;generator class="uuid.hex"/&gt;
+        &lt;/id&gt;
+
+        &lt;!-- Un chat poss&egrave;de un nom mais qui ne doit pas &ecirc;tre trop
+	     long. --&gt;
+        &lt;property name="name"&gt;
+            &lt;column name="NAME" length="16" not-null="true"/&gt;
+        &lt;/property&gt;
+
+        &lt;property name="sex"/&gt;
+
+        &lt;property name="weight"/&gt;
+
+    &lt;/class&gt;
+
+&lt;/hibernate-mapping&gt;</pre><p>
+            Toute classe persistante doit avoir un identifiant (en fait, uniquement les
+            classes repr&eacute;sentant des entit&eacute;s, pas les valeurs d&eacute;pendant d'objets, qui sont
+            mapp&eacute;es en tant que composant d'une entit&eacute;). Cette propri&eacute;t&eacute; est utilis&eacute;e pour
+            distinguer les objets persistants : deux chats sont &eacute;gaux si l'expression
+            <tt class="literal">catA.getId().equals(catB.getId())</tt> est vraie, ce concept est 
+            appel&eacute; <span class="emphasis"><em>identit&eacute; de base de donn&eacute;es</em></span>. Hibernate fournit en
+            standard un certain nombre de g&eacute;n&eacute;rateurs d'identifiants qui couvrent la plupart
+            des sc&eacute;narii (notamment les g&eacute;n&eacute;rateurs natifs pour les s&eacute;quences de base de donn&eacute;es,
+            les tables d'identifiants hi/lo, et les identifiants assign&eacute;s par l'application).
+            Nous utilisons le g&eacute;n&eacute;rateur UUID (recommand&eacute; uniquement pour les tests dans la
+            mesure o&ugrave; les cl&eacute;s techniques g&eacute;n&eacute;r&eacute;es par la base de donn&eacute;es doivent &ecirc;tre privil&eacute;gi&eacute;es).
+            et d&eacute;clarons que la colonne <tt class="literal">CAT_ID</tt> de la table <tt class="literal">CAT</tt>
+            contient la valeur de l'identifiant g&eacute;n&eacute;r&eacute; par Hibernate (en tant que cl&eacute; 
+            primaire de la table).
+        </p><p>
+            Toutes les propri&eacute;t&eacute;s de <tt class="literal">Cat</tt> sont mapp&eacute;es &agrave; la m&ecirc;me table. La
+            propri&eacute;t&eacute; <tt class="literal">name</tt> est mapp&eacute;e utilisant une d&eacute;claration explicite
+            de la colonne de base de donn&eacute;es. C'est particuli&egrave;rement utile dans le cas o&ugrave; le
+            sch&eacute;ma de la base de donn&eacute;es est g&eacute;n&eacute;r&eacute; automatiquement (en tant qu'ordre SQL - DDL)
+            par l'outil d'Hibernate <span class="emphasis"><em>SchemaExport</em></span> &agrave; partir des d&eacute;clarations
+            du mapping. Toutes les autres propri&eacute;t&eacute;s prennent la valeur par d&eacute;faut donn&eacute;e par
+            Hibernate ; ce qui, dans la majorit&eacute; des cas, est ce que l'on souhaite. La table
+            <tt class="literal">CAT</tt> dans la base de donn&eacute;es sera :
+        </p><pre class="programlisting"> Colonne |         Type          | Modificateurs
+---------+-----------------------+---------------
+ cat_id  | character(32)         | not null
+ name    | character varying(16) | not null
+ sex     | character(1)          |
+ weight  | real                  |
+Indexes : cat_pkey primary key btree (cat_id)</pre><p>
+            Vous devez maintenant cr&eacute;er manuellement cette table dans votre base de donn&eacute;es,
+            plus tard, vous pourrez vous r&eacute;f&eacute;rer &agrave; <a href="toolsetguide.html" title="Chapitre&nbsp;15.&nbsp;Guide des outils">Chapitre&nbsp;15, <i>Guide des outils</i></a> si vous d&eacute;sirez
+            automatiser cette &eacute;tape avec l'outil SchemaExport. Cet outil cr&eacute;e un fichier de
+            type DDL SQL qui contient la d&eacute;finition de la table, les contraintes de type
+            des colonnes, les contraintes d'unicit&eacute; et les index.
+    	</p></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="quickstart-playingwithcats"></a>1.4.&nbsp;Jouer avec les chats</h2></div></div><div></div></div><p>
+            Nous sommes maintenant pr&ecirc;ts &agrave; utiliser la <tt class="literal">Session</tt> Hibernate.
+            C'est l'interface du <span class="emphasis"><em>gestionnaire de persistance</em></span>, on
+            l'utilise pour sauver et r&eacute;cup&eacute;rer les <tt class="literal">Cat</tt>s respectivement
+            dans et &agrave; partir de la base de donn&eacute;es. Mais d'abord, nous devons r&eacute;cup&eacute;rer une
+            <tt class="literal">Session</tt> (l'unit&eacute; de travail Hibernate) &agrave; partir de la 
+            <tt class="literal">SessionFactory</tt> :
+        </p><pre class="programlisting">SessionFactory sessionFactory =
+            new Configuration().configure().buildSessionFactory();</pre><p>
+            Une <tt class="literal">SessionFactory</tt> est responsable d'une base de donn&eacute;es
+            et n'accepte qu'un seul fichier de configuration XML 
+            (<tt class="literal">hibernate.cfg.xml</tt>). Vous pouver positionner les autres
+            propri&eacute;t&eacute;s (voire m&ecirc;me changer le m&eacute;ta-mod&egrave;le du mapping) en utilisant
+            <tt class="literal">Configuration</tt> <span class="emphasis"><em>avant</em></span>
+			de construire la <tt class="literal">SessionFactory</tt> (elle est immuable).
+            Comment cr&eacute;er la  <tt class="literal">SessionFactory</tt> et comment y acc&eacute;der dans
+            notre application ?
+        </p><p>
+            En g&eacute;n&eacute;ral, une <tt class="literal">SessionFactory</tt> n'est construite
+            qu'une seule fois, c'est-&agrave;-dire au d&eacute;marrage (avec une servlet de
+            type <span class="emphasis"><em>load-on-startup</em></span>). Cela veut donc dire que
+            l'on ne doit pas la garder dans une variable d'instance des servlets,
+            mais plut&ocirc;t ailleurs. Il faut un support de type <span class="emphasis"><em>Singleton</em></span>
+            pour pouvoir y acc&eacute;der facilement. L'approche montr&eacute;e ci-dessous r&eacute;sout 
+            les deux probl&egrave;mes : celui de configuration et celui de la facilit&eacute; 
+            d'acc&egrave;s &agrave; <tt class="literal">SessionFactory</tt>.
+		</p><p>
+            Nous impl&eacute;mentons <tt class="literal">HibernateUtil</tt>, une classe utilitaire
+		</p><pre class="programlisting">import net.sf.hibernate.*;
+import net.sf.hibernate.cfg.*;
+
+public class HibernateUtil {
+
+    private static final SessionFactory sessionFactory;
+
+    static {
+        try {
+            // Cr&eacute;e la SessionFactory
+            sessionFactory = new Configuration().configure().buildSessionFactory();
+        } catch (HibernateException ex) {
+            throw new RuntimeException("Probl&egrave;me de configuration : " + ex.getMessage(), ex);
+        }
+    }
+
+    public static final ThreadLocal session = new ThreadLocal();
+
+    public static Session currentSession() throws HibernateException {
+        Session s = (Session) session.get();
+        // Ouvre une nouvelle Session, si ce Thread n'en a aucune
+        if (s == null) {
+            s = sessionFactory.openSession();
+            session.set(s);
+        }
+        return s;
+    }
+
+    public static void closeSession() throws HibernateException {
+        Session s = (Session) session.get();
+        session.set(null);
+        if (s != null)
+            s.close();
+    }
+}</pre><p>
+            Non seulement cette classe s'occupe de garder <tt class="literal">SessionFactory</tt>
+            dans un de ses attributs statiques, mais en plus elle garde la 
+            <tt class="literal">Session</tt> du thread courant dans une variable de type
+            <tt class="literal">ThreadLocal</tt>. Vous devez bien comprendre le concept Java
+            de variable de type tread-local (locale &agrave; un thread) avant d'utiliser cette 
+            classe utilitaire.
+		</p><p>
+            Une <tt class="literal">SessionFactory</tt> est threadsafe : beaucoup de threads peuvent
+            y acc&eacute;der de mani&egrave;re concurrente et demander une <tt class="literal">Session</tt>.
+            Une <tt class="literal">Session</tt> est un objet non threadsafe qui repr&eacute;sente
+            une unit&eacute; de travail avec la base de donn&eacute;es. Les <tt class="literal">Session</tt>s
+            sont ouvertes par la <tt class="literal">SessionFactory</tt> et sont ferm&eacute;es quand
+            le travail est termin&eacute; :
+        </p><pre class="programlisting">Session session = HibernateUtil.currentSession();
+
+Transaction tx= session.beginTransaction();
+
+Cat princess = new Cat();
+princess.setName("Princess");
+princess.setSex('F');
+princess.setWeight(7.4f);
+
+session.save(princess);
+tx.commit();
+
+HibernateUtil.closeSession();</pre><p>
+            Dans une <tt class="literal">Session</tt>, chaque op&eacute;ration sur la base de donn&eacute;es
+            se fait dans une transaction qui isole les op&eacute;rations de la base de donn&eacute;es
+            (c'est &eacute;galement le cas pour les lectures seules). Nous utilisons l'API
+            <tt class="literal">Transaction</tt> pour s'abstraire de la strat&eacute;gie transactionnelle
+            utilis&eacute;e (dans notre cas, les transactions JDBC). Cela permet d'avoir un code
+            portable et d&eacute;ployable sans le moindre changement dans un environnement 
+            transactionnel g&eacute;r&eacute; par le conteneur - CMT - (JTA est utilis&eacute; dans ce cas).
+            Il est &agrave; noter que l'exemple ci-dessus ne g&egrave;re pas les exceptions.
+        </p><p>
+            Notez &eacute;galement que vous pouvez appeler <tt class="literal">HibernateUtil.currentSession();</tt>
+            autant de fois que vous voulez, cette m&eacute;thode vous ram&egrave;nera toujours la 
+            <tt class="literal">Session</tt> courante pour ce thread. Vous devez vous assurer que
+            la <tt class="literal">Session</tt> est ferm&eacute;e apr&egrave;s la fin de votre unit&eacute; de travail
+            et avant que la r&eacute;ponse HTTP soit envoy&eacute;e. Cela peut &ecirc;tre par exemple dans le code 
+            de votre servlet ou dans un filtre de servlet. L'effet de bord int&eacute;ressant de la
+            seconde solution est l'initialisation tardive : la <tt class="literal">Session</tt>
+            est encore ouverte lorsque la vue est construite. Hibernate peut donc charger,
+            lors de votre navigation dans le graphe, les objets qui n'&eacute;taient pas initialis&eacute;s.
+        </p><p>
+            Hibernate poss&egrave;de diff&eacute;rentes m&eacute;thodes de r&eacute;cup&eacute;ration des objets &agrave; partir de  
+            la base de donn&eacute;es. La plus flexible est d'utiliser le langage de 
+            requ&ecirc;tage d'Hibernate (HQL comme Hibernate Query Language). Ce langage
+            puissant et facile &agrave; comprendre est une extension orient&eacute;e objet du SQL:
+        </p><pre class="programlisting">Transaction tx = session.beginTransaction();
+
+Query query = session.createQuery("select c from Cat as c where c.sex = :sex");
+query.setCharacter("sex", 'F');
+for (Iterator it = query.iterate(); it.hasNext();) {
+    Cat cat = (Cat) it.next();
+    out.println("Chat femelle : " + cat.getName() );
+}
+
+tx.commit();</pre><p>
+            Hibernate offre &eacute;galement une API orient&eacute;e objet de <span class="emphasis"><em>requ&ecirc;tage par 
+            crit&egrave;res</em></span> qui peut &ecirc;tre utilis&eacute;e pour formuler des requ&ecirc;tes typ&eacute;es.
+            Bien s&ucirc;r, Hibernate utilise des <tt class="literal">PreparedStatement</tt>s et les
+            param&egrave;tres associ&eacute;s pour toutes ses communications SQL avec la base
+            de donn&eacute;es. Vous pouvez &eacute;galement utiliser la fonctionalit&eacute; de requ&ecirc;tage
+            SQL natif d'Hibernate ou, dans de rares occasions, r&eacute;cup&eacute;rer un connexion
+            JDBC &agrave; partir de la <tt class="literal">Session</tt>.
+        </p></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="quickstart-summary"></a>1.5.&nbsp;Conclusion</h2></div></div><div></div></div><p>
+            Nous n'avons fait que gratter la surface d'Hibernate dans ce petit tutoriel.
+            Notez que nous n'avons pas inclus de code sp&eacute;cifique aux servlets dans notre
+            exemple. Vous devez cr&eacute;er vous-m&ecirc;me une servlet et y ins&eacute;rer le code Hibernate
+            qui convient.
+        </p><p>
+            Garder &agrave; l'esprit qu'Hibernate, en tant que couche d'acc&egrave;s aux donn&eacute;es, est
+            fortement int&eacute;gr&eacute; &agrave; votre application. En g&eacute;n&eacute;ral, toutes les autres couches
+            d&eacute;pendent du m&eacute;canisme de persistance quel qu'il soit. Soyez s&ucirc;r de comprendre les implications
+            de ce design.
+        </p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="preface.html">Pr&eacute;c&eacute;dent</a>&nbsp;</td><td width="20%" align="center"><a accesskey="u" href="index.html">Niveau sup&eacute;rieur</a></td><td width="40%" align="right">&nbsp;<a accesskey="n" href="architecture.html">Suivant</a></td></tr><tr><td width="40%" align="left" valign="top">Pr&eacute;face&nbsp;</td><td width="20%" align="center"><a accesskey="h" href="index.html">Sommaire</a></td><td width="40%" align="right" valign="top">&nbsp;Chapitre&nbsp;2.&nbsp;Architecture</td></tr></table></div></body></html>
